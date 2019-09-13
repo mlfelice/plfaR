@@ -1,0 +1,126 @@
+# This is a practice script using plfayer package to complete the analysis pipe
+
+data_2016 <- import_batch_multi(source_dir, keyword = 'Batch')
+
+qc_stats_2016 <- quality_check(data_2016)
+
+lapply(qc_stats_2016, function(x){ # pull out dup lipids to ID samples
+  x$duplicate_lipids
+}
+)
+
+change_win_r_path <- function(windows_path){
+  
+}
+
+# Load sample wght data sheet
+samp_wt_df <- readxl::read_xlsx(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\20190705_spruce_plfa_sample-prep-wksht.xlsx', 
+                        sheet = 'SPRUCE batches ', na = 'NA') %>%  # sht name incl trailing space
+  tidyr::fill(`GC Batch #`) %>%
+  filter(!is.na(`Renamed on day 4`)) %>%
+  mutate(SampleID = paste(`Sample ID`, '2016', 
+                          stringr::str_extract(string = `GC Batch #`, 
+                                      pattern = '[0-9]+$'), sep = '_'),
+         DataFileName = paste0(`Renamed on day 4`, '.raw'),
+         Batch = stringr::str_extract(string = `GC Batch #`, pattern = '[0-9]$+')) %>%
+  select(Batch, DataFileName, SampleID, SampleWt = `Sample weight`)
+
+# Just the B's are standards
+standard_filenames <- c('7.raw', '8.raw', '17.raw', '18.raw', '27.raw', 
+                        '28.raw', '37.raw', '38.raw', '47.raw', '48.raw',
+                        '56.raw', '57.raw', '65.raw', '66.raw', '73.raw', 
+                        '74.raw', '81.raw', '82.raw', '89.raw', '90.raw',
+                        '95.raw', '96.raw', '101.raw', '102.raw', 
+                        '109.raw', '110.raw', '117.raw', '118.raw', '128.raw',
+                        '129.raw', '138.raw', '139.raw', '147.raw', '148.raw',
+                        '155.raw', '156.raw', '164.raw', '165.raw', '173.raw', 
+                        '174.raw', '181.raw', '182.raw', '189.raw', '190.raw', 
+                        '201.raw', '202.raw')
+#
+standard_filenames <- (samp_wt_df %>% filter(stringr::str_detect(SampleID, '^B[0-9]_')))[['DataFileName']]
+
+data_2016_processed <- normalize_area(data_2016) %>%
+  subtract_blanks() %>%
+  apply_kval(standard_fnames = standard_filenames) %>%
+  calc_biomarkers()
+
+# This chunk below would be used only if stopping with concentrations (summary df is clean already)
+#data_2016_clean <- data_2016_processed %>% 
+#  select(-c(TotalPeakArea1, CFNumerator, CFactor, NormalizedArea, 
+#            AreaMinusBlank, kval, molecular_weight_g_per_mol, indicates, 
+#            C_PLFA, Batch.y, SampleWt))
+
+metadata_path <- 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\background\\20190911_spruce_core-metadata.xlsx'
+plfa_metadata <- readxl::read_excel(path = metadata_path, sheet = 'sample_metadata')
+
+#This seems like it might be repetitive (undoing a previous step)
+data_2016_clean <- data_2016_processed %>%
+  mutate(SampleID = stringr::str_replace_all(SampleID, ' ', '-'),
+         SampleID = stringr::str_replace_all(SampleID, '_', '-'),
+         SampleID = stringr::str_remove(SampleID, '(?<=[0-9])[A-Za-z]'),
+         SampleID = stringr::str_remove(SampleID, '(?<=[0-9])-[0-9]+-[0-9]'),
+         SampleID = stringr::str_remove(SampleID, '-2016-NA'),
+         SampleID = stringr::str_replace(SampleID, 'h', 'H'),
+         SampleID = stringr::str_remove(SampleID, '(?<=-)[ABCDEF]'),
+         SampleID = stringr::str_replace(SampleID, 'A-([+]0-[+]10)-2016-5', '5-Hol-1'),
+         SampleID = stringr::str_remove(SampleID, '-[(]Sample-[AB][)]-2016-5*'),
+         SampleID = stringr::str_replace(SampleID, 'A-[(][+]0-[+]10[)]-2016-5', '5-Hol-1')
+         )
+# Need to do a little more replacement to get everything in line, but for now this will do
+full_sample_df <- data_2016_clean %>%
+  left_join(plfa_metadata, by = 'SampleID') %>%
+  filter(!stringr::str_detect(SampleID, '^[BC]'))
+unique(full_sample_df[['SampleID']])
+
+# Total biomass
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(Temperature_treatment), y = TotalBiomass)) +
+  ggplot2::facet_wrap(~`Depth increment`, scales = 'free')
+
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(`Depth increment`), y = TotalBiomass)) +
+  ggplot2::facet_wrap(~Temperature_treatment, scales = 'free')
+
+# Funagl:Bacterial
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(`Depth increment`), y = FungiToBact)) +
+  ggplot2::facet_wrap(~Temperature_treatment, scales = 'free')
+
+# Groups
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(`Depth increment`), y = PercentBact)) +
+  ggplot2::facet_wrap(~Temperature_treatment, scales = 'fixed')
+
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(`Depth increment`), y = PercentFungi)) +
+  ggplot2::facet_wrap(~Temperature_treatment, scales = 'fixed')
+
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(`Depth increment`), y = PercentGramPos)) +
+  ggplot2::facet_wrap(~Temperature_treatment, scales = 'fixed')
+
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_boxplot(ggplot2::aes(x = as.character(`Depth increment`), y = PercentGramNeg)) +
+  ggplot2::facet_wrap(~Temperature_treatment, scales = 'fixed')
+
+# Scatterplots
+# All plots have ambient and elevated CO2
+ggplot2::ggplot(data = full_sample_df) +
+  ggplot2::geom_point(ggplot2::aes(x = Temperature_treatment, y = PercentFungi, color = CO2_Actual_Treatment)) +
+  ggplot2::facet_wrap(~`Depth increment`, scales = 'fixed')
+a <- full_sample_df %>% filter(`Depth increment` == 1 & Temperature_treatment == 2.25)
+
+#--------------------------------------------------
+
+meth_cfactors <- readxl::read_excel(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\data\\20190912_spruce_plfa_13c-corrections.xlsx',
+                                    sheet = 'methanol_compiled')
+
+data_2016_processed <- normalize_area(data_2016) %>%
+  subtract_blanks() %>%
+  apply_kval(standard_fnames = standard_filenames) 
+
+a <- data_2016_processed %>%
+  left_join(data_2016, by = c('BatchDataFileName', 'Name')) %>%
+  left_join(meth_cfactors, by = c('Batch.x' = 'GCBatch')) %>%
+  correct_iso(d13c_correction = 37.433)
+

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1568317108579.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "7658A53F",
+    "lastKnownWriteTime" : 1568317166,
+    "last_content_update" : 1568317166831,
+    "path" : "C:/Users/Mark/Desktop/plfayer/R/qc_funs.R",
+    "project_path" : "R/qc_funs.R",
+    "properties" : {
+        "cursorPosition" : "133,15",
+        "scrollLine" : "102"
+    },
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

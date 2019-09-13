@@ -1,0 +1,22 @@
+Package: plfayer
+Type: Package
+Title: Interface for Analyzing IonVantage 13C-PLFA Data
+Version: 0.0.0.9000
+Authors@R: person("Mark", "Felice", email = "mark.l.felice@gmail.com", 
+  role = c("aut", "cre"))
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: plfayer is a package designed for processing 13C-PLFA peak lists 
+    generated from IonVantage software. Current functionality includes quality 
+	control checks for duplicate peaks, missing standards, and viewing lipid 
+	distribution. The primary (future) use is for converting raw peak lists 
+	into lipid concentrations and biomarker relative abundance. In the future, 
+	this package will also include calculation of 13C isotope ratios.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports: dplyr,
+    readxl,
+    stringr,
+    writexl,
+    tidyr
+RoxygenNote: 6.1.1
