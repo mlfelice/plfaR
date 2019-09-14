@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1568485685003.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2745719923",
+    "id" : "998191C2",
+    "lastKnownWriteTime" : 1568486996,
+    "last_content_update" : 1568486996240,
+    "path" : "C:/Users/Mark/Desktop/plfayer/R/data_import_base.R",
+    "project_path" : "R/data_import_base.R",
+    "properties" : {
+        "cursorPosition" : "52,0",
+        "scrollLine" : "42"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -94,7 +94,9 @@ count_lipids <- function(df){
 #' information related to the quality of the data in the peak list:
 #' Samples with duplicate peak names
 #' Samples that are missing one or more of the standards peaks 13:0, 16:0, 19:0
-#' The distribution of lipids among samples
+#' The distribution of lipids among samples.
+#' Function will also notifiy you of batches with these issues in the console
+#' whether or not you store the return values
 #'
 #' @param df Dataframe or tibble containing the following columns: Batch,
 #' DataFileName, RetTimeSecs, MajorHeightnA, TotalPeakArea1, DisplayDelta1,
@@ -105,6 +107,14 @@ count_lipids <- function(df){
 #' samples.
 #'
 #' @examples
+#' If you receive a warning, you can easily pull out relevant details using
+#' lapply().
+#'
+#' \code{lapply(qc_stats_2016, function(x){ # pull out dup lipids to ID samples
+#' x$duplicate_lipids
+#' }
+#' )
+#' }
 #'
 #'
 quality_check <- function(df){

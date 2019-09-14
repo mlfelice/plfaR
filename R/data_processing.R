@@ -1,101 +1,67 @@
-#' Normalize peak areas across batches
-#'
-#' GC response varies varies across batches, producing different peak areas
-#' for same lipid cocncentration. This function normalizes the peak area
-#' across batches for consistent results within an analysis. Current
-#' implementation normalizes to the batch with the smallest mean peak area
-#' (non-detects not treated as 0 and not included in the average). Averages
-#' used for the correction factor only includes experimental samples, blanks
-#' (B), and methylation controls (C) (ie. internal standard, M1M2, and FAME).
-#' This is consistent with the Excel example calculations provided by Jess.
-#'
-#' @param \code{df} peak list as dataframe or tibble, loaded using
-#' \code{load_batch()} function.
-#'
-#' @return Returns with same fields as input dataframe as well as
-#' Normalized CFactor (conversion factor; used for normalization),
-#' NormalizedArea and other intermeidates used in normalization
-#' calculations.
-#'
-#' @examples
-#'
-#'
-# Is there any advantage to keeping the old cols (eg. TotalPeakArea1)
-# Need to refactor/optimize this function - got it working, but was focused
-# on function over form.
-normalize_area <- function(df){ # Need to remove standards from this calculation
-  cf_numerator_df <- df %>%
-    group_by(Batch, DataFileName, BatchDataFileName, Name) %>% #in case dups here on purpose, this merges them
-    summarise(TotalPeakArea1 = sum(TotalPeakArea1)) %>%
-    ungroup() %>%
-    filter(!stringr::str_detect(DataFileName, 'Internal|M1M2|FAME')) %>%
-    group_by(BatchDataFileName) %>%
-    mutate(AllLipidArea = sum(TotalPeakArea1)) %>%
-    ungroup %>%
-    group_by(Batch) %>%
-    mutate(MeanBatchArea = mean(AllLipidArea)) %>%
-    ungroup() %>%
-    filter(MeanBatchArea == min(MeanBatchArea)) %>%
-    group_by(Name) %>%
-    summarise(CFNumerator = mean(TotalPeakArea1))
-
-  df %>% #group_by(Batch, Name) %>%
-    #summarise(BatchMeanPeakArea = mean(TotalPeakArea1, na.rm = TRUE)) %>%
-    group_by(Batch, DataFileName, BatchDataFileName, Name) %>% #in case dups here on purpose, this merges them
-    summarise(TotalPeakArea1 = sum(TotalPeakArea1)) %>%
-    ungroup() %>%
-    left_join(cf_numerator_df, by = 'Name') %>%
-    group_by(Batch, Name) %>%
-    mutate(CFactor = CFNumerator / mean(TotalPeakArea1[!stringr::str_detect(DataFileName, 'Internal|M1M2|FAME')])) %>%
-    #right_join(df, by = c('Batch', 'Name')) %>%
-    mutate(NormalizedArea = TotalPeakArea1 * CFactor)  ### changed 8/15/2019
-
-  #should also add something to make CF values = 1 if there are no samples for denominator
-  #had to add some lines to remove teh standards from these calculations
-}
-
 #' Subtract surrogate and methylation standard peak areas
 #'
 #' Gutknecht lab PLFA runs all include a 19;0 surrogate standard spiked
 #' into soil samples before extraction, and extracted lipids are suspended
 #' in 13:0 control solution. We need to subtract the peak area due to these
 #' samples, so that we only measure lipids from the soil sample. This function
-#' subtracts corrects 13:0 and 19:0 peak areas to account for this. The current
-#' implementation uses the average peak area of all samples from the batch,
-#' excluding internal standards, M1M2, and FAME. These averages do include 0s.
-#' This implementation is consistent with the example Excel calcs provided by
-#' Jess. Editorial: I think it would make the most sense to subtract only the
-#' peak areas from blanks and methylation standards (B and C). I think this is
-#' also what the protocol states.
+#' subtracts 13:0 and 19:0 peak areas to account for this. User must specify
+#' the DataFileNames associated with the controls used for peak subtraction.
+#' User may also select peaks for subtraction (default is 13:0 and 19:0).
+#'
+#' Might want to integrate id of blanks etc. in the metadata.
 #'
 #'@param \code{df} Dataframe or tibble with NormalizedPeakArea. Use the output
 #'from \code{normalize_area()} function.
 #'
-#'@param \code{biomarkers}
+#'@param \code{blanks}
+#'
+#'@param \code{lipids}
 #'
 #'@return
 #'
 #'@examples
 #'
 #'
-subtract_blanks <- function(df, biomarkers = c('13:0', '19:0')){  # version that subtracts average of all peak area in that batch
-  all_biomarkers <- unique(df[['Name']])
+subtract_blanks <- function(df, blanks = c('100.raw', '101.raw'),
+                            lipids = c('13:0', '19:0')){  # version that subtracts avg of blanks only
+
+  blanks_df <- df %>%
+    filter(DataFileName %in% blanks) %>%
+    group_by(Name) %>%
+    mutate(BlankArea = if_else(Name %in% lipids, mean(TotalPeakArea1), 0)) %>%
+    select(Name, BlankArea)
 
   df %>% ungroup() %>%
-    group_by(DataFileName) %>%
-    tidyr::complete(Name = !!all_biomarkers, fill = list(NormalizedArea = 0)) %>% # May eventually move to the loading function, if we decide to treat all blanks as 0 for all averages
-    tidyr::fill(Batch) %>%
-    ungroup() %>%
+    left_join(blanks_df, by = 'Name') %>%
+    mutate(BlankArea = if_else(is.na(BlankArea), 0, BlankArea)) %>%
     group_by(Batch, Name) %>%
-    mutate(AreaMinusBlank = if_else(Name %in% biomarkers,
-                                    NormalizedArea-mean(NormalizedArea[!stringr::str_detect(DataFileName, 'Internal|M1M2|FAME')]),
-                                    NormalizedArea),
-           AreaMinusBlank = if_else(AreaMinusBlank < 0, 0, AreaMinusBlank)#,
-           #AreaToSubtract = mean(NormalizedArea)
-    )
-  #as above, modified to exclude standards from teh 13:0 average
+    mutate(AreaMinusBlank = if_else(TotalPeakArea1 - BlankArea < 0, 0,
+                                    TotalPeakArea1 - BlankArea))
 }
 
+#'
+#'
+#'
+#'
+#'
+#calc_kval <- function(df, standard_fnames, standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
+#                      standard = '13:0'){
+#  kval_df <- df[which(df[['DataFileName']] %in% standard_fnames &
+#                        df[['Name']] == standard),] %>%
+#    group_by(Name) %>% # took this away, b/c Jess uses single K-value/ whole set
+#    mutate_at(vars(TotalPeakArea1), funs(StandardArea = mean(., na.rm = TRUE))) %>%  # intra-batch mean of blanks
+#    ungroup() %>%
+#    #rename(StandardArea = TotalPeakArea1, StandardBiomarker = Name) %>%  # rename so distinct after join
+#    rename(StandardBiomarker = Name) %>%  # rename so distinct after join
+#    #group_by(Batch, Biomarker) %>%
+#    # currently makes one kval/batch, Jess version of Excel uses single kval for all
+#    mutate(kval = StandardArea / !!standard_conc / !!inj_vol) %>%  # calc kval - one/batch
+#    #filter(Biomarker == standard & !is.na(Batch)) %>%
+#    select(StandardBiomarker, StandardArea, kval)
+#
+#  kval <- kval_df[['kval']][[1]]
+#
+#}
 
 #' Convert peak areas to concentration
 #'
@@ -122,32 +88,25 @@ subtract_blanks <- function(df, biomarkers = c('13:0', '19:0')){  # version that
 # but probably not the best in terms of presenting clear results
 # Now that the biomarker calcs returns a dataframe, for lipid concentrations, can just stop analysis after
 # this point
-apply_kval <- function(df, standard_fnames, mw_df = lipid_reference,
-                       standard_conc = 250, inj_vol = 2, standard = '13:0',#standard_fnames should be blanks, not 13:0 standard, I think
-                       soil_wt_df, vial_vol = 50){
+# An advantage of doing all in one/appending kvals to the df is you can keep df as output and use pipes
+calc_concentration <- function(df, standard_fnames, mw_df = lipid_reference, standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
+                       standard = '13:0', soil_wt_df, vial_vol = 20){
   kval_df <- df[which(df[['DataFileName']] %in% standard_fnames &
                         df[['Name']] == standard),] %>%
-    group_by(Name) %>% # took this away, b/c Jess uses single K-value/ whole set
-    mutate_at(vars(NormalizedArea), funs(StandardArea = mean(., na.rm = TRUE))) %>%  # intra-batch mean of blanks
+    group_by(Batch, Name) %>%
+    summarise_at(vars(TotalPeakArea1), mean, na.rm = TRUE) %>%  # intra-batch mean of blanks
     ungroup() %>%
-    #rename(StandardArea = NormalizedArea, StandardBiomarker = Name) %>%  # rename so distinct after join
-    rename(StandardBiomarker = Name) %>%  # rename so distinct after join
+    rename(StandardArea = TotalPeakArea1, StandardBiomarker = Name) %>%  # rename so distinct after join
     #group_by(Batch, Biomarker) %>%
-    # currently makes one kval/batch, Jess version of Excel uses single kval for all
-    mutate(kval = StandardArea / !!standard_conc / !!inj_vol) %>%  # calc kval - one/batch
+    mutate(kval = (StandardArea / !!standard_conc / !!inj_vol)) %>%  # calc kval - one/batch
     #filter(Biomarker == standard & !is.na(Batch)) %>%
-    select(StandardBiomarker, StandardArea, kval)
-
-  kval <- kval_df[['kval']][[1]]
-
-  nmol_df <- df %>%
-    mutate(kval = !!kval) %>%
+    right_join(df, by = c('Batch')) %>%
     left_join(mw_df, by = c('Name' = 'fame')) %>%
     select(-Batch) %>%
     left_join(samp_wt_df, by = 'DataFileName') %>%
-    mutate(nmol_g = (NormalizedArea / kval) * (!!vial_vol / 2) /
-             (`molecular_weight_g_per_mol` * SampleWt))
-  return(nmol_df)
+    mutate(nmol_g = (TotalPeakArea1 / kval) * (!!vial_vol / 2) /
+             (molecular_weight_g_per_mol * SampleWt))
+  return(kval_df)
 
 }
 
@@ -215,10 +174,69 @@ clean_nmol_df <- function(df){
            Year = str_extract(SampleID, '(?<=_)[0-9]+(?=_)'),
            Plot = str_extract(SampleID, '^[0-9]+(?=-)'),
            DepthNum = str_extract(SampleID, '(?<=-)[0-9](?=[A-Za-z])')) %>%
-    select(-c(kval, NormalizedArea, `Molecular weight (g/mol)`, SampleWt))
+    select(-c(kval, TotalPeakArea1, `Molecular weight (g/mol)`, SampleWt))
   return(clean_df)
 }
 
+#' Normalize peak areas across batches
+#'
+#' GC response varies varies across batches, producing different peak areas
+#' for same lipid cocncentration. This function normalizes the peak area
+#' across batches for consistent results within an analysis. Current
+#' implementation normalizes to the batch with the smallest mean peak area
+#' (non-detects not treated as 0 and not included in the average). Averages
+#' used for the correction factor only includes experimental samples, blanks
+#' (B), and methylation controls (C) (ie. internal standard, M1M2, and FAME).
+#' This is consistent with the Excel example calculations provided by Jess.
+#'
+#' This should only be used VERY carefully and under extreme circumstances, as
+#' it introduces some dicey assumptions and may not be totally statistically
+#' valid
+#'
+#' @param \code{df} peak list as dataframe or tibble, loaded using
+#' \code{load_batch()} function.
+#'
+#' @return Returns with same fields as input dataframe as well as
+#' Normalized CFactor (conversion factor; used for normalization),
+#' NormalizedArea and other intermeidates used in normalization
+#' calculations.
+#'
+#' @examples
+#'
+#'
+# Is there any advantage to keeping the old cols (eg. TotalPeakArea1)
+# Need to refactor/optimize this function - got it working, but was focused
+# on function over form.
+normalize_area <- function(df){
+  cf_numerator_df <- df %>%
+    group_by(Batch, DataFileName, BatchDataFileName, Name) %>% #in case dups here on purpose, this merges them
+    summarise(TotalPeakArea1 = sum(TotalPeakArea1)) %>%
+    ungroup() %>%
+    filter(!stringr::str_detect(DataFileName, 'Internal|M1M2|FAME')) %>%
+    group_by(BatchDataFileName) %>%
+    mutate(AllLipidArea = sum(TotalPeakArea1)) %>%
+    ungroup %>%
+    group_by(Batch) %>%
+    mutate(MeanBatchArea = mean(AllLipidArea)) %>%
+    ungroup() %>%
+    filter(MeanBatchArea == min(MeanBatchArea)) %>%
+    group_by(Name) %>%
+    summarise(CFNumerator = mean(TotalPeakArea1))
+
+  df %>% #group_by(Batch, Name) %>%
+    #summarise(BatchMeanPeakArea = mean(TotalPeakArea1, na.rm = TRUE)) %>%
+    group_by(Batch, DataFileName, BatchDataFileName, Name) %>% #in case dups here on purpose, this merges them
+    summarise(TotalPeakArea1 = sum(TotalPeakArea1)) %>%
+    ungroup() %>%
+    left_join(cf_numerator_df, by = 'Name') %>%
+    group_by(Batch, Name) %>%
+    mutate(CFactor = CFNumerator / mean(TotalPeakArea1[!stringr::str_detect(DataFileName, 'Internal|M1M2|FAME')])) %>%
+    #right_join(df, by = c('Batch', 'Name')) %>%
+    mutate(NormalizedArea = TotalPeakArea1 * CFactor)  ### changed 8/15/2019
+
+  #should also add something to make CF values = 1 if there are no samples for denominator
+  #had to add some lines to remove teh standards from these calculations
+}
 
 
 #Add a function for displaying data, which will reshape to wide format for easier viewing
@@ -226,3 +244,6 @@ clean_nmol_df <- function(df){
 
 # Add a function for batch importing of batches --> basically the lapply stuff from
 # 20190811_spruce_plfa_data-processing.R
+
+
+# confirmed Blanks have 13:0 only, controls should have 13:0 and 19:0

@@ -123,4 +123,26 @@ a <- data_2016_processed %>%
   left_join(data_2016, by = c('BatchDataFileName', 'Name')) %>%
   left_join(meth_cfactors, by = c('Batch.x' = 'GCBatch')) %>%
   correct_iso(d13c_correction = 37.433)
+apply_kval(data_2016, c('147.raw', '148.raw'))
 
+source_dir <- choose.dir()
+a<- import_batch(paste0(source_dir, '\\20180821_GC_Gutknecht_ES_SPRUCE_Batch2_rerun_naming.xlsx'))
+'20180821_GC_Gutknecht_ES_SPRUCE_Batch2_rerun_naming.xlsx'
+
+quality_check(a)
+calc_concentration(a, standard_fnames = standard_filenames) %>% calc_biomarkers()
+lipid_reference
+source_dir <- 'C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete whenever'
+b<-import_batch_multi('C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete whenever\\20190401_GC_Gutknecht_TS_SPRUCE_Batch6_naming.xlsx', keyword = 'Batch')
+
+b <- reshape(c, idvar = c('BatchDataFileName', 'Batch'), v.names = 'TotalPeakArea1', 
+        timevar = 'Name', direction = 'wide', sep = '_')
+
+b<-subtract_blanks(a)
+names(a)[names(a) == 'grob'] <- 'TotalPeakArea1'
+c<-transform(b, AreaMinusBlanks = ifelse(TotalPeakArea1 - StandardArea > 0, TotalPeakArea1 - StandardArea, 0))
+d <- calc_concentration(b, soil_wt_df = samp_wt_df, standard_fnames = standard_filenames)
+b[b[['DataFileName']] %in% standard_filenames &
+                     b[['Name']] == '13:0', 'TotalPeakArea1']
+quality_check(list(Batch2 = c, Batch3 = c))
+process_peak_area(c, standard_fnames = standard_filenames)

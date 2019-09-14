@@ -1,0 +1,286 @@
+# 8/9/2019 current iteration of nmol calcs and quality checks
+
+# 1. Load packages ####
+#----------------------
+library(tidyverse)
+library(readxl)
+library(writexl)
+library(reshape2)
+library(stringr)
+
+# 2. Define functions ####
+# ------------------------
+id_dups <- function(df){
+  # 
+  # function checks and outputs biomarkers with duplicate entries within sample
+  #
+  # Args:
+  #   df: dataframe of count of peaks
+  #       - wide format (cols = biomarkers, rows = samples)
+  #       - sample names can either be rownames or a column named 'biomarker'
+  #   start_col: the first column containing biomarkers
+  #
+  # Returns:
+  #   dataframe of biomarkers and samples with duplicate biomarkers (if any)
+  #-------------------------------------------------------------------------
+  files_col <- grepl('DataFileName', colnames(df))
+  
+  if(any(files_col) == TRUE){  # converts col to rowname if biomarks are a col
+    df <- column_to_rownames(df, colnames(df[files_col]))
+  }
+  
+  
+  if(any(df > 1) == TRUE){
+    
+    # get rownames/colnames of entries > 1 (duplicate name x sample)
+    bms_dup <- colnames(df)[col(df)[which(df > 1)]]
+    files_dup <- rownames(df)[row(df)[which(df > 1)]]
+    # dataframe of sample x biomarkers w/duplicate
+    dup_df <- tibble(DataFileName = files_dup, Biomarker = bms_dup)
+    
+  } else{print('No duplicate peak names identified')}
+  
+  return(dup_df)
+  
+}
+
+find_miss <- function(df, lipids = c('13:0', '16:0', '19:0')){
+  # 
+  # function checks and outputs biomarkers with duplicate entries within sample
+  #
+  # Args:
+  #   df: dataframe of count of peaks
+  #       - wide format (cols = biomarkers, rows = samples)
+  #       - sample names can either be rownames or a column named 'biomarker'
+  #   start_col: the first column containing biomarkers
+  #
+  # Returns:
+  #   dataframe of biomarkers and samples with duplicate biomarkers (if any)
+  #-------------------------------------------------------------------------
+  
+  files_col <- grepl('DataFileName', colnames(df))
+  
+  if(any(files_col) == TRUE){  # converts col to rowname if biomarks are a col
+    df <- column_to_rownames(df, colnames(df[files_col]))
+  }
+  
+  df <- df[, lipids]
+  
+  
+  if(any(df == 0) == TRUE){
+    
+    # get rownames/colnames of entries > 1 (duplicate name x sample)
+    bms_dup <- colnames(df)[col(df)[which(df == 0)]]
+    files_dup <- rownames(df)[row(df)[which(df == 0)]]
+    # dataframe of sample x biomarkers w/duplicate
+    miss_df <- tibble(DataFileName = files_dup, Biomarker = bms_dup)
+    
+  } else{print('No missing standards identified')}
+  
+  return(miss_df)
+  
+}
+
+count_lips <- function(df, start_col = 2){ 
+  #
+  # determines detection freqeuncy for each lipid in input dataframe
+  #
+  # Args:
+  #   df: dataframe with # of peaks for each biomarker (cols) and sample (rows)
+  #       - should only contain biomarker frequencies and filenames
+  # 
+  # Returns:
+  #   dataframe listing the detection frequency for each biomarker (rows)
+  
+  files_col <- grepl('DataFileName', colnames(df))
+  
+  if(any(files_col) == TRUE){  # converts col to rowname if biomarks are a col
+    df <- column_to_rownames(df, colnames(df[files_col]))
+  }
+  
+  freq <- sapply(df, function(x){sum(x)/length(x)})
+  
+  lipid_freq_df <- tibble(Lipid = names(df), Detection_freq = freq) # Make dataframe from vecs
+  
+  return(lipid_freq_df)
+}
+
+normalize_area <- function(df, biomarkers){
+  
+  cf_long_df <- df %>% group_by(Batch) %>%
+    summarise_at(biomarkers, funs(mean), na.rm = TRUE) %>%
+    mutate_at(vars(biomarkers), function(x) {max(x)/x}) %>%
+    gather(key = 'Biomarker', value = 'ConversionFactor', 
+           c('??':'8:0??'))
+  
+  area_long_df <- gather(data = df, key = 'Biomarker', 
+                         value = 'TotalPeakArea1', c('??':'8:0??'))
+  
+  normalized_df <- area_long_df %>% 
+    left_join(cf_long_df, by = c('Batch', 'Biomarker')) %>%
+    mutate(NormalizedArea = ConversionFactor * TotalPeakArea1) %>%
+    select(-TotalPeakArea1, -ConversionFactor) #%>%
+    #spread(key = Biomarker, value = NormalizedArea)
+  
+  return(normalized_df)  
+}
+
+apply_kval <- function(df, standard_fnames, mw_df, standard_conc = 250, inj_vol = 2, 
+                       standard = '13:0', soil_wt_df, vial_vol = 20){
+  kval_df <- df[which(df[['DataFileName']] %in% standard_fnames &
+                        df[['Biomarker']] == standard),] %>%
+    group_by(Batch, Biomarker) %>%
+    summarise_at(vars(NormalizedArea), mean, na.rm = TRUE) %>%
+    ungroup() %>%
+    rename(StandardArea = NormalizedArea, StandardBiomarker = Biomarker) %>%
+    #group_by(Batch, Biomarker) %>%
+    mutate(kval = (StandardArea / !!standard_conc / !!inj_vol)) %>%
+    #filter(Biomarker == standard & !is.na(Batch)) %>%
+    right_join(df, by = c('Batch')) %>%
+    left_join(mw_df, by = c('Biomarker' = 'FAME ID')) %>%
+    select(-Batch) %>%
+    left_join(samp_wt_df, by = 'DataFileName') %>%
+    mutate(nmol_g = (NormalizedArea / kval) * (!!vial_vol / 2) / 
+             (`Molecular weight (g/mol)` * SampleWt)) 
+  return(kval_df)
+  
+}
+
+calc_biomarkers <- function(df){
+  f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c')
+  b_lipids <- c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso', 
+                '16:0 iso', '16:1 w7c', '16:0 10me', '17:0 iso', '17:0 anteiso', 
+                '18:1 w9t', '18:1 w7c', '18:0 10me')
+  
+  df <- df %>% group_by(BatchDataFileName) %>% 
+    mutate(TotalBiomass = sum(nmol_g[!is.na(indicates)], na.rm = TRUE),
+           TotalFungi = sum(nmol_g[Biomarker %in% !!f_lipids], na.rm = TRUE),
+           TotalBact = sum(nmol_g[Biomarker %in% !!b_lipids], na.rm = TRUE),
+           FungiToBact = TotalFungi / TotalBact,
+           PercentFungi = TotalFungi / TotalBiomass * 100,
+           PercentBact = TotalBact / TotalBiomass * 100
+    )
+  return(df)
+  
+}
+
+clean_nmol_df <- function(df){
+  clean_df <- df %>% 
+    mutate(Replicate = str_extract(SampleID, '(?<=[0-9])[A-Za-z]*(?=_)'),
+           Year = str_extract(SampleID, '(?<=_)[0-9]+(?=_)'),
+           Plot = str_extract(SampleID, '^[0-9]+(?=-)'),
+           DepthNum = str_extract(SampleID, '(?<=-)[0-9](?=[A-Za-z])')) %>%
+    select(-c(StandardArea, kval, NormalizedArea, `Molecular weight (g/mol)`, SampleWt))
+  return(clean_df)
+}
+
+################
+
+
+o_wd <- getwd() #store original wd for restore
+
+setwd('C:/Users/Mark/Dropbox/umn_gutknecht_postdoc/spruce_project/plfa_13c/')
+
+# Load sample wght data sheet
+samp_wt_df <- read_xlsx(path = '20190705_spruce_plfa_sample-prep-wksht.xlsx', 
+                        sheet = 'SPRUCE batches ', na = 'NA') %>%  # sht name incl trailing space
+  fill(`GC Batch #`) %>%
+  #select(`Sample ID`, `Renamed on day 4`, `GC Batch #`) %>%
+  mutate(SampleID = paste(`Sample ID`, '2016', 
+                          str_extract(string = `GC Batch #`, 
+                                      pattern = '[0-9]+$'), sep = '_')) %>%
+  mutate(DataFileName = ifelse((!is.na(`Renamed on day 4`) & 
+                                  grepl('^[0-9]+', `Renamed on day 4`) == TRUE), 
+                               paste0(`Renamed on day 4`, '.raw'), NA),
+         Batch = str_extract(string = `GC Batch #`, pattern = '[0-9]$+')) %>%
+  rename(SampleWt = `Sample weight`) %>%
+  select(Batch, DataFileName, SampleID, SampleWt)
+
+# Load biomarker molecular weights
+mwt_ref_path <- 'C:/Users/Mark/Dropbox/umn_gutknecht_postdoc/spruce_project/plfa_13c/20190521_spruce_plfa_biomarker-molecular-wt.xlsx'
+mwt_ref_df <- read_xlsx(mwt_ref_path)
+mwt_ref_df <- mwt_ref_df[2:nrow(mwt_ref_df), ]
+
+
+# 3. Load raw data for multiple batch files in single directory ####
+#-------------------------------------------------------------------
+
+source_dir <- choose.dir()
+
+batch_files <- list.files(path = source_dir, full.names = TRUE)
+
+batch_list <- vector('list', length = 5)
+names(batch_list) <- c('named_peaks', 'qc_df', 'dup_lipids', 'missing_stds',
+                       'lipid_freq')
+
+#batch_list <- lapply(names(batch_list), 
+#                     function(x){batch_list[[x]] <- 
+#                       vector('list', length = length(batch_files))}
+#                     )
+
+##### Definitely try to rework this beast - simplify and make into function
+#batch_names <- sapply(batch_files, str_extract, '[Bb]atch ?[0-9]+')
+#####
+i = 1
+for(bf in batch_files){
+  batch_name <- str_extract(string = bf, pattern = '[Bb]atch ?[0-9]+')  # ? looks for 0 or 1
+  
+  batch_list[['named_peaks']][[i]] <- read_xlsx(bf, sheet = 'named_peaks', na = 'NA') %>%
+    select(-BiomarkerRTBased, -Notes) %>%
+    filter(!is.na(BiomarkerFinal) & BiomarkerFinal != 'Check chromatogram for 18 peaks' & BiomarkerFinal != 'nothing')
+  batch_list[['named_peaks']][[i]]['Batch'] <- batch_name
+  batch_list[['named_peaks']][[i]] <- batch_list[['named_peaks']][[i]] %>%
+    mutate(BatchDataFileName = paste(Batch, DataFileName, sep = '_')) %>%
+    select(Batch, DataFileName, BatchDataFileName, everything())
+  names(batch_list[['named_peaks']])[[i]] <- batch_name
+  batch_list[['named_peaks']][[i]]['DisplayDelta1'] <- as.character(batch_list[['named_peaks']][[i]]['DisplayDelta1'])
+  ###  
+  batch_list[['qc_df']][[i]] <- dcast(batch_list[['named_peaks']][[i]], DataFileName ~ BiomarkerFinal, 
+                                      value.var = 'TotalPeakArea1', 
+                                      fun.aggregate = length)  # Make wide and aggregate
+  names(batch_list[['qc_df']])[[i]] <- batch_name
+  
+  
+  qc_df <- dcast(batch_list[['named_peaks']][[i]], DataFileName ~ BiomarkerFinal, 
+                 value.var = 'TotalPeakArea1', 
+                 fun.aggregate = length)  # Make wide and aggregate
+  
+  batch_list[['dup_lipids']][[i]] <- id_dups(qc_df)
+  names(batch_list[['dup_lipids']])[[i]] <- batch_name
+  
+  
+  
+  # check to see that 16:O, 13:O, & 19:O in each sample 
+  batch_list[['missing_stds']][[i]] <- find_miss(qc_df)
+  names(batch_list[['missing_stds']])[[i]] <- batch_name
+  
+  # sum each column and divide by nrow to determine the percentage of samples with a named peak
+  batch_list[['lipid_freq']][[i]] <- count_lips(qc_df)
+  names(batch_list[['lipid_freq']])[[i]] <- batch_name
+  
+  i = i + 1
+}
+
+#####
+all_batch_df <- bind_rows(batch_list[['named_peaks']])
+
+areaw_df <- dcast(all_batch_df, BatchDataFileName ~ BiomarkerFinal,  # make wide
+                  value.var = 'TotalPeakArea1', fun.aggregate = sum) %>%  # vals don't change
+  mutate(Batch = str_extract(BatchDataFileName, '[Bb]atch ?[0-9]+'), 
+         DataFileName = gsub('[Bb]atch ?[0-9]+_', '', BatchDataFileName)) %>%
+  select(Batch, DataFileName, everything())
+
+#######
+
+# 4. Apply nmol calculations to full multi-batch dataset
+#-------------------------------------------------------
+c_names <- names(areaw_df)[4:length(names(areaw_df))]
+
+standards <- c('Internal std 1.raw', 'Internal std 2.raw')
+
+final_results_df <- areaw_df %>% 
+  normalize_area(c_names) %>%
+  apply_kval(standards, mwt_ref_df) %>%
+  calc_biomarkers() %>%
+  clean_nmol_df()
+

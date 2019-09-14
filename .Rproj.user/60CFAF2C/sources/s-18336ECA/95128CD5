@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1568485985831.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1632904237",
+    "id" : "95128CD5",
+    "lastKnownWriteTime" : 1568488109,
+    "last_content_update" : 1568488109112,
+    "path" : "C:/Users/Mark/Desktop/plfayer/R/helper_funs.R",
+    "project_path" : "R/helper_funs.R",
+    "properties" : {
+        "cursorPosition" : "6,0",
+        "scrollLine" : "0",
+        "tempName" : "Untitled2"
+    },
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

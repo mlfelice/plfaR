@@ -40,32 +40,33 @@ import_batch <- function(file_path){
   #   - We could alternatively make a function for using regex to replace
   #     the common errors (eg. trailing space, gamma instead of w, spaces
   #     after comma)
-  readxl::read_excel(file_path, sheet = 'named_peaks', na = 'NA') %>%
-    select(-BiomarkerRTBased, -Notes) %>%
-    filter(!is.na(Name)) %>% # Remove unnamed peaks
-             # add if statement so that if there is no batch column, but batch name is in
-             #filename, it can create a batch column
-             mutate(DisplayDelta1 = as.numeric(DisplayDelta1),
-             #Batch = str_extract(string = file_path, pattern = '[Bb]atch ?[0-9]+'),
-              BatchDataFileName = paste(Batch, DataFileName, sep = '_')) %>% # ? looks for 0 or 1)
-             select(Batch, DataFileName, BatchDataFileName, everything()) # Ensure order
+  column_names <- c('Batch', 'DataFileName', 'RetTimeSecs', 'MajorHeightnA',
+                    'TotalPeakArea1', 'DisplayDelta1', 'Name')
+  column_types <- c('text', 'text', 'numeric', 'numeric', 'numeric', 'guess',
+                    'text')
+
+  tmp_df <- readxl::read_excel(file_path, sheet = 'named_peaks',
+                               range = readxl::cell_cols('A:G'),
+                               col_types = column_types, na = 'NA')
+  tmp_df <- tmp_df[column_names] #This won't be necessary if we import the correct format
+  tmp_df[['DisplayDelta1']] <- as.character(tmp_df[['DisplayDelta1']])  # Sometimes this col has "#TypeMismatch", which throws an error for readxl if you specify numeric
+
+  tmp_df <- tmp_df[!is.na(tmp_df[['Name']]), ]  # Remove unnamed peaks
+  tmp_df[['BatchDataFileName']] <- paste(tmp_df[['Batch']], tmp_df[['DataFileName']], sep = '_')
+    # add if statement so that if there is no batch column, but batch name is in
+    #filename, it can create a batch column
+#    mutate(DisplayDelta1 = as.numeric(DisplayDelta1),
+#           Batch = str_extract(string = file_path, pattern = '[Bb]atch ?[0-9]+'),
+#           BatchDataFileName = paste(Batch, DataFileName, sep = '_')) %>% # ? looks for 0 or 1)
+  imported_df <- tmp_df[c('BatchDataFileName', column_names)] # Ensure order
 }
 
-# one issue is that the quality control functions were designed to loop
-# over a list of dataframes, not a single dataframe with all samples
-# Need to modify so that both work on single dataframe (or list of df)
-# Also want to modify this so that you can either supply a directory or
-# a list of file paths
+
 import_batch_multi <- function(dir, keyword){
   batch_files <- list.files(path = source_dir, pattern = keyword,
                             full.names = TRUE) %>%
-    lapply(import_batch)
+    batch_list <- lapply(import_batch)
 
-  all_batch_df <- bind_rows(batch_files)
-  invisible(all_batch_df)
+  #all_batch_df <- bind_rows(batch_files)
+  invisible(batch_list)
 }
-
-
-# Add something for importing metadata here
-# Make it a requirement to have SampleID match between metadata and peak list
-
