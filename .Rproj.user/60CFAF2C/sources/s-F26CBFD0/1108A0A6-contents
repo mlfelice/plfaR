@@ -135,14 +135,56 @@ lipid_reference
 source_dir <- 'C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete whenever'
 b<-import_batch_multi('C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete whenever\\20190401_GC_Gutknecht_TS_SPRUCE_Batch6_naming.xlsx', keyword = 'Batch')
 
-b <- reshape(c, idvar = c('BatchDataFileName', 'Batch'), v.names = 'TotalPeakArea1', 
-        timevar = 'Name', direction = 'wide', sep = '_')
+############################################
+# Run through full workflow with 'base' version functions to compare to Excel
+# This uses batch6, which should have a fully cleaned and working peak list
+############################################
+source_dir <- choose.dir()
+batch6 <- import_batch_base(paste0(source_dir, 
+                              '\\20190401_GC_Gutknecht_TS_SPRUCE_Batch6_naming.xlsx'))
+# Batch2, which is full of dups: '20180821_GC_Gutknecht_ES_SPRUCE_Batch2_rerun_naming.xlsx'
 
-b<-subtract_blanks(a)
-names(a)[names(a) == 'grob'] <- 'TotalPeakArea1'
-c<-transform(b, AreaMinusBlanks = ifelse(TotalPeakArea1 - StandardArea > 0, TotalPeakArea1 - StandardArea, 0))
-d <- calc_concentration(b, soil_wt_df = samp_wt_df, standard_fnames = standard_filenames)
-b[b[['DataFileName']] %in% standard_filenames &
-                     b[['Name']] == '13:0', 'TotalPeakArea1']
-quality_check(list(Batch2 = c, Batch3 = c))
-process_peak_area(c, standard_fnames = standard_filenames)
+# Import function sometimes adds extra cols if you have blank, but previously
+# used cells in Excel
+
+batch6_qc <- quality_check_base(batch6)
+batch6_qc[['6']][['missing_lipids']]
+batch6_qc[['6']][['lipid_frequency']]
+
+# Load sample wght data sheet
+samp_wt_df <- readxl::read_xlsx(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\20190705_spruce_plfa_sample-prep-wksht.xlsx', 
+                                sheet = 'SPRUCE batches ', na = 'NA') %>%  # sht name incl trailing space
+  tidyr::fill(`GC Batch #`) %>%
+  filter(!is.na(`Renamed on day 4`)) %>%
+  mutate(SampleID = paste(`Sample ID`, '2016', 
+                          stringr::str_extract(string = `GC Batch #`, 
+                                               pattern = '[0-9]+$'), 
+                          sep = '_'),
+         DataFileName = paste0(`Renamed on day 4`, '.raw'),
+         Batch = stringr::str_extract(string = `GC Batch #`, 
+                                      pattern = '[0-9]$+')) %>%
+  select(Batch, DataFileName, SampleID, SampleWt = `Sample weight`)
+
+standard_filenames <- (samp_wt_df %>% filter(stringr::str_detect(SampleID, 
+                                                                 '^B[0-9]_')))[['DataFileName']]
+
+batch6_nmol <- process_peak_area_base(dat = batch6, 
+                                      standard_fnames = standard_filenames,
+                                      soil_wt_df = samp_wt_df)
+
+batch6_d13c <- correct_iso_base(df = batch6, d13c_correction = 37.433, 
+                                methanol_13c = (-13))
+
+#######################################################################
+# Separate pieces of info required for processing a batch of samples:
+# - Named peak list dataframe (Batch, DataFileName, TotalPeakArea1, MajorHeightnA, DisplayDelta1)
+# - Sample weights
+# - Vector of filenames used for standards
+# - Vector of filenames corresponding to blanks (13:0 and 19:0) - kind of tricky, since these are different
+# - d13C correction factor
+# - Methanol 13C
+# - Not used in this package yet, but we will also want other metadata for identifying the samples
+#
+#
+# Wnat to make it more transparent which parameters were used in the analysis
+# - Might want to print intermediate calculated parameters, like kval, avg of standards, etc

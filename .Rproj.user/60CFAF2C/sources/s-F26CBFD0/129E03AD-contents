@@ -25,11 +25,15 @@
 #'
 #' @examples
 #'
-correct_iso <- function(df, d13c_correction, d13c_methanol){
-  corrected_df <- df %>%
-    left_join(lipid_reference, by = c('Name' = 'fame')) %>%
-    mutate(d13C_corrected = ((DisplayDelta1 - d13c_correction)*(C_PLFA + 1) -
-                               d13c_methanol)/C_PLFA)
+correct_iso_base <- function(df, d13c_correction, methanol_13c){
+  df[['DisplayDelta1']] <- as.numeric(df[['DisplayDelta1']])
+
+  corrected_df <- merge(df, lipid_reference, by.x = 'Name', by.y = 'fame',
+                        all.x = TRUE)
+  corrected_df <- transform(corrected_df, d13C_corrected =
+                              ((C_PLFA + 1) * (DisplayDelta1- d13c_correction) -
+                                 methanol_13c) / C_PLFA)
 
 }
-
+# Does the methanol correction have to be corrected for too?
+# Or is this number already include instrument correction?

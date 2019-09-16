@@ -14,7 +14,7 @@
 #'
 
 # Maybe instead, we just have a display function that converts to wide
-import_batch <- function(file_path){
+import_batch_base <- function(file_path){
   # This function imports named peak list for downstream processing/analysis
   #
   # Args:
@@ -62,7 +62,7 @@ import_batch <- function(file_path){
 }
 
 
-import_batch_multi <- function(dir, keyword){
+import_batch_multi_base <- function(dir, keyword){
   batch_files <- list.files(path = source_dir, pattern = keyword,
                             full.names = TRUE) %>%
     batch_list <- lapply(import_batch)
@@ -70,3 +70,5 @@ import_batch_multi <- function(dir, keyword){
   #all_batch_df <- bind_rows(batch_files)
   invisible(batch_list)
 }
+
+# would be cool to have a merge emthod like in phyloseq object

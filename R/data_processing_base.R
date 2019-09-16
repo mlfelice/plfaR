@@ -1,4 +1,4 @@
-subtract_blanks <- function(df, blanks = c('1.raw', '2.raw'),
+subtract_blanks_base <- function(df, blanks = c('1.raw', '2.raw'),
                             lipids = c('13:0', '19:0')){  # version that subtracts avg of blanks only
 
   blanks_df <- df[df[['DataFileName']] %in% blanks, ]
@@ -22,14 +22,16 @@ subtract_blanks <- function(df, blanks = c('1.raw', '2.raw'),
   return(full_df)
 }
 
-area_to_concentration <- function(df, standard_fnames, mw_df = lipid_reference,
-                               standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
-                               standard = '13:0', soil_wt_df, vial_vol = 20){
+area_to_concentration_base <- function(df, standard_fnames, soil_wt_df,
+                                       mw_df = lipid_reference,
+                                       standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
+                                       standard = standard, vial_vol = vial_vol){
 
 
 
-  standard_vec <- df[df[['DataFileName']] %in% standard_fnames &
-                             df[['Name']] == standard, 'TotalPeakArea1']
+  standard_vec <- unlist(df[df[['DataFileName']] %in% standard_fnames &
+                             df[['Name']] == standard, 'TotalPeakArea1'])
+
   kval <- mean(standard_vec) / standard_conc / inj_vol
 
   tmp_df <- merge(df, samp_wt_df, by = c('Batch', 'DataFileName'), all.x = TRUE)
@@ -42,19 +44,19 @@ area_to_concentration <- function(df, standard_fnames, mw_df = lipid_reference,
 
 }
 
-process_peak_area <- function(dat, standard_fnames, mw_df = lipid_reference,
+process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference,
                               standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
-                              standard = '13:0', soil_wt_df, vial_vol = 20,
-                              blanks = c('1.raw', '2.raw'),
+                              standard = '13:0', soil_wt_df, vial_vol = 50,
+                              blanks = c('Internal std 1.raw', 'Internal std 2.raw'),
                               lipids = c('13:0', '19:0')){
 
-  dtype <- check_dtype(dat)
+  dtype <- check_format(dat)
 
   if (dtype == 'data.frame') {
-    tmp_df <- subtract_blanks(dat, blanks = c('1.raw', '2.raw'),
+    tmp_df <- subtract_blanks(dat, blanks = blanks,
                     lipids = c('13:0', '19:0'))
-    area_to_concentration(tmp_df, standard_fnames, mw_df = lipid_reference,
-                      standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
-                      standard = '13:0', soil_wt_df, vial_vol = 20)
+    area_to_concentration_base(tmp_df, standard_fnames, mw_df = lipid_reference,
+                      standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
+                      standard = standard, soil_wt_df, vial_vol = vial_vol)
   }
 }
