@@ -136,7 +136,7 @@ source_dir <- 'C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete wheneve
 b<-import_batch_multi('C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete whenever\\20190401_GC_Gutknecht_TS_SPRUCE_Batch6_naming.xlsx', keyword = 'Batch')
 
 ############################################
-# Run through full workflow with 'base' version functions to compare to Excel
+# Full example workflow with 'base' version functions to compare to Excel
 # This uses batch6, which should have a fully cleaned and working peak list
 ############################################
 source_dir <- choose.dir()
@@ -152,21 +152,27 @@ batch6_qc[['6']][['missing_lipids']]
 batch6_qc[['6']][['lipid_frequency']]
 
 # Load sample wght data sheet
-samp_wt_df <- readxl::read_xlsx(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\20190705_spruce_plfa_sample-prep-wksht.xlsx', 
-                                sheet = 'SPRUCE batches ', na = 'NA') %>%  # sht name incl trailing space
-  tidyr::fill(`GC Batch #`) %>%
-  filter(!is.na(`Renamed on day 4`)) %>%
-  mutate(SampleID = paste(`Sample ID`, '2016', 
-                          stringr::str_extract(string = `GC Batch #`, 
-                                               pattern = '[0-9]+$'), 
-                          sep = '_'),
-         DataFileName = paste0(`Renamed on day 4`, '.raw'),
-         Batch = stringr::str_extract(string = `GC Batch #`, 
-                                      pattern = '[0-9]$+')) %>%
-  select(Batch, DataFileName, SampleID, SampleWt = `Sample weight`)
+#samp_wt_df <- readxl::read_xlsx(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\20190705_spruce_plfa_sample-prep-wksht.xlsx', 
+#                                sheet = 'SPRUCE batches ', na = 'NA') %>%  # sht name incl trailing space
+#  tidyr::fill(`GC Batch #`) %>%
+#  filter(!is.na(`Renamed on day 4`)) %>%
+#  mutate(SampleID = paste(`Sample ID`, '2016', 
+#                          stringr::str_extract(string = `GC Batch #`, 
+#                                               pattern = '[0-9]+$'), 
+#                          sep = '_'),
+#         DataFileName = paste0(`Renamed on day 4`, '.raw'),
+#         Batch = stringr::str_extract(string = `GC Batch #`, 
+#                                      pattern = '[0-9]$+')) %>%
+#  select(Batch, DataFileName, SampleID, SampleWt = `Sample weight`)
 
-standard_filenames <- (samp_wt_df %>% filter(stringr::str_detect(SampleID, 
-                                                                 '^B[0-9]_')))[['DataFileName']]
+#standard_filenames <- (samp_wt_df %>% filter(stringr::str_detect(SampleID, 
+#                                                                 '^B[0-9]_')))[['DataFileName']]
+
+samp_wt_df <- readxl::read_xlsx(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\data\\20190916_spruce_plfa_metadata.xlsx', 
+                                sheet = 'Sheet1', na = 'NA') %>%
+              dplyr::rename(Batch = `GC Batch #`, SampleWt = SampleWeight)
+
+standard_filenames <- unlist(samp_wt_df[samp_wt_df[['SampleType']] == 'blank', 'DataFileName'])
 
 batch6_nmol <- process_peak_area_base(dat = batch6, 
                                       standard_fnames = standard_filenames,
@@ -174,6 +180,112 @@ batch6_nmol <- process_peak_area_base(dat = batch6,
 
 batch6_d13c <- correct_iso_base(df = batch6, d13c_correction = 37.433, 
                                 methanol_13c = (-13))
+
+#-------------------------
+# Reshape data to wide for NMDS and PCA (and other multivariate stats)
+a <- reshape::cast(batch6_nmol, DataFileName ~ Name,
+                   value = 'nmol_g', fun.aggregate = sum)
+
+a[(is.na(a))] <- 0.0                   
+
+b <- merge(a, samp_wt_df, by = 'DataFileName', all.x = TRUE)
+b <- b[b[['SampleType']] == 'unknown' & !is.na(b[['SampleType']]), 
+       c(15, 17, 2, c(3:13))]
+
+library(vegan)
+
+set.seed(100)
+nmds_data <- metaMDS(as.matrix(b), dist = 'bray') 
+
+plot(nmds_data)
+# Cameron removes outliers using 1.5xIQR method
+
+# Maybe the object comes in after analysis - could have the whole project together and use it to 
+# filter low peak height samples, etc - completely in physeq mold
+#####################################################################
+# Example workflow for whole experiment (multiple batches) using base versions
+#####################################################################
+# Import sample metatdata
+samp_wt_df <- readxl::read_xlsx(path = 'C:\\Users\\Mark\\Dropbox\\umn_gutknecht_postdoc\\spruce_project\\plfa_13c\\data\\20190916_spruce_plfa_metadata.xlsx', 
+                                sheet = 'Sheet1', na = 'NA') %>%
+  dplyr::rename(Batch = `GC Batch #`, SampleWt = SampleWeight)
+
+# Define DataFileNames associated with standards used for kval
+standard_filenames <- unlist(samp_wt_df[samp_wt_df[['SampleType']] == 'blank', 'DataFileName'])
+
+# Define filenames associated with blanks for subtracting form unknowns
+blanks_vec <- unlist(samp_wt_df[samp_wt_df[['SampleType']] == 'blank', 'DataFileName'])
+
+source_dir <- choose.dir()  # Select directory holding batch files
+# import all batches into a list
+all_batches_list <- import_batch_multi_base(source_dir, keyword = 'Batch')  
+                                  
+# calculate nmol concentrations for all batches
+nmol_all <- lapply(all_batches_list, process_peak_area_base, blanks = blanks_vec, standard_fnames = standard_filenames,
+                                      soil_wt_df = samp_wt_df)
+# merge results into a single dataframe for analysis
+nmol_all_df <- do.call('rbind', nmol_all)
+
+# convert to wide format for multivariate stats
+a <- reshape::cast(nmol_all_df, DataFileName ~ Name,
+                   value = 'nmol_g', fun.aggregate = sum)
+
+a[(is.na(a))] <- 0.0  # convert NA to 0 (NA throws error in NMDS)
+
+b <- merge(a, samp_wt_df, by = 'DataFileName', all.x = TRUE)
+b <- b[b[['SampleType']] == 'unknown' & !is.na(b[['SampleType']]), ]
+b <- b[which(rowSums(b[c(2:23)])>0),]
+c <- b[, c(2:23)]
+rownames(c) <- b$DataFileName
+treats <- b$Batch
+
+
+library(vegan)
+# rows with all 0 caues issues with bray-curtis, so remove
+c <- c[which(rowSums(c)>0),]
+c <- as.matrix(c)
+names(dimnames(c)) <- c('DataFileName', 'Lipid')
+set.seed(100)
+nmds_data <- metaMDS(as.matrix(c), dist = 'bray') 
+stressplot(nmds_data)
+
+nmds_sample_scores <- as.data.frame(scores(nmds_data))  # returns a matrix of the NMDS1 and NMDS2 sample scores
+nmds_sample_scores[['sample']] <- rownames(nmds_sample_scores)
+nmds_sample_scores <- merge(nmds_sample_scores, samp_wt_df, by.x = 'sample', 
+                            by.y = 'DataFileName', all.x = TRUE)
+
+nmds_species_scores <- scores(nmds_data, 'species')  # same, but for species (lipid)
+
+
+chull(nmds_data$grp == ??)  # extract hull data for this group
+
+ggplot2::ggplot(data = nmds_sample_scores, ggplot2::aes(x = NMDS1, y = NMDS2, 
+                                               color = DepthInterval)) +
+  ggplot2::geom_point() + 
+  ggplot2::stat_ellipse() +
+  ggplot2::theme_bw()
+
+
+# base graphics
+plot(nmds_data)
+ordiplot(nmds_data, type = 'n')
+ordihull(nmds_data, groups = treats, draw = 'polygon')
+orditorp(nmds_data, display = 'sites', cex=.5,air=0.01, col = treats)
+summary(vegan::ordiellipse(nmds_data, groups = treats))
+
+indicators_all <- lapply(nmol_all, process_peak_area_base, blanks = blanks_vec, standard_fnames = standard_filenames,
+                   soil_wt_df = samp_wt_df)
+
+indicators_all <- lapply(nmol_all, calculate_indicators_base)
+
+indicators_all_df <- do.call('rbind', indicators_all)
+
+
+
+ggplot2::ggplot(data = indicators_all_df[indicators_all_df['Indicator'] == 'total_biomass', ], 
+  ggplot2::aes(x = DepthInterval, y = Percent_or_fraction)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::facet_wrap(~Plot)
 
 #######################################################################
 # Separate pieces of info required for processing a batch of samples:
@@ -184,7 +296,27 @@ batch6_d13c <- correct_iso_base(df = batch6, d13c_correction = 37.433,
 # - d13C correction factor
 # - Methanol 13C
 # - Not used in this package yet, but we will also want other metadata for identifying the samples
+# - Allow an optional list defining the column names of input files
 #
 #
 # Wnat to make it more transparent which parameters were used in the analysis
 # - Might want to print intermediate calculated parameters, like kval, avg of standards, etc
+# - Could also store this to a dataframe
+# - Metadata dataframe could also be useful (include the role of each sample in this?)
+readClipboard()
+a<-import_batch_wide('C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete whenever\\20190401_GC_Gutknecht_TS_SPRUCE_Batch6_naming.xlsx')
+a<- import_batch_multi_wide(source_dir, keyword = 'Batch')
+a<-calculate_indicators_base(nmol_all[[6]])
+
+ggplot2::ggplot(data = a[a[['Indicator']]=='total_biomass',], ggplot2::aes(x = Plot, y = Percent_or_fraction)) +
+  ggplot2::geom_boxplot()
+
+# for filtering: use apply to create a logical matrix, then use matrix to select items
+
+a_mat <- matrix(data = c('a','b','b','b','c','a'), nrow = 2, ncol = 3)
+logic_mat <- a_mat == 'b'
+logic_mat
+a_mat[logic_mat]
+setdiff()
+setequal()
+

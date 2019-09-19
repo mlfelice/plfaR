@@ -141,6 +141,7 @@ calc_biomarkers <- function(df){
   anaerobe_lipids <- c('19:0 cyclo')
 
   # Try to find a more efficient way of doing this: perhaps apply, or mutate_at?
+  # maybe put indicator lipids in a list of vectors we can loop over
   df <- df %>% filter(!is.na(BatchDataFileName)) %>% # This removes cells added with complete() - no longer needed b/c we're not finding averages; it actually screws up the summary
     group_by(BatchDataFileName, DataFileName, SampleID) %>%
     summarise(TotalBiomass = sum(nmol_g[!is.na(indicates)], na.rm = TRUE),

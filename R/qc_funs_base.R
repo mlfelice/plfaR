@@ -87,3 +87,5 @@ quality_check_base <- function(df){
 # Some stats on peak heights
 
 # could also add an option to filter peak heights below a certain threshold
+
+# Function to determine intra-batch variation in RT of major/reliable lipids
