@@ -14,8 +14,9 @@
 #' MajorHeightnA, TotalPeakArea1, DisplayDelta1, Name. This can be the output
 #' from import_batch() or import_batch_multi().
 #'
-#' @param \code{c13_correction} difference between measured USGS40 value and
-#' expected USGS40 value (-26.39 per mil).
+#' @param \code{d13d_correction} difference between measured USGS40 value and
+#' expected USGS40 value (-26.39 per mil). If IonVantage output was already
+#' corrected, the enter 0.
 #'
 #' @param \code{methanol_13c} 13C signature of the methanol used for
 #' methylation.
