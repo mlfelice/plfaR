@@ -78,14 +78,26 @@ quality_check_base <- function(df){
       cat(paste0('Batch: ', unique(x[['Batch']]), '\n------\n'))
       lapply(qa_funs, function(f){f(x)})
     })
+
+    batch_names <- unique(as.character(df[['Batch']]))
+
   } else if (dtype == 'list'){
-      qa_stats_list <- lapply(df, function(x){
-        cat(paste0('Batch: ', unique(x[['Batch']]), '\n------\n'))
-        lapply(qa_funs, function(f){f(x)})
-      })
+    qa_stats_list <- lapply(df, function(x){
+      cat(paste0('Batch: ', unique(x[['Batch']]), '\n------\n'))
+      lapply(qa_funs, function(f){f(x)})
+    })
+
+    batch_names <- vapply(df, function(x){unique(as.character(x[['Batch']]))},
+                          FUN.VALUE = 'character')
   }
 
-  names(qa_stats_list) <- unique(as.character(df[['Batch']]))
+  # TO DO: Make this message show which samples had no associated batch info
+  #   This might require us to move this up into the lapply() loops above
+  if(NA %in% batch_names){message(paste0('Warning: Some samples in this batch',
+                                         'are missing batch data'))}
+
+  names(qa_stats_list) <- paste0('Batch_',
+                                 batch_names[which(!is.na(batch_names))])
 
   invisible(qa_stats_list) # Create list of for assignemnt w/o printing
 
