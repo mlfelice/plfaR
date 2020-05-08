@@ -74,12 +74,15 @@ quality_check_base <- function(df){
 
   if (dtype == 'data.frame'){
 
-    qa_stats_list <- lapply(split(df, f = df[['Batch']]), function(x){
+    ls <- split(df, f = df[['Batch']])
+
+    qa_stats_list <- lapply(ls, function(x){
       cat(paste0('Batch: ', unique(x[['Batch']]), '\n------\n'))
       lapply(qa_funs, function(f){f(x)})
     })
 
-    batch_names <- unique(as.character(df[['Batch']]))
+    batch_names <- vapply(ls, function(x){unique(as.character(x[['Batch']]))},
+                          FUN.VALUE = 'character')
 
   } else if (dtype == 'list'){
     qa_stats_list <- lapply(df, function(x){
