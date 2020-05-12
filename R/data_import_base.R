@@ -63,7 +63,7 @@ import_batch_base <- function(file_path){
 
 
 import_batch_multi_base <- function(dir, keyword){
-  batch_files <- list.files(path = source_dir, pattern = keyword,
+  batch_files <- list.files(path = dir, pattern = keyword,
                             full.names = TRUE)
   batch_list <- lapply(batch_files, import_batch_base)
 
