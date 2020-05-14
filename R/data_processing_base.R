@@ -62,7 +62,8 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
 }
 
 ###########
-calculate_indicators_base <- function(df){
+# TO DO: output info on the warnings that are thrown if there are duplicates during reshape
+calculate_indicators_base <- function(df, soil_wt_df){
 
   indicator_list <- list(f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
                          b_lipids <- c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso',
@@ -125,7 +126,7 @@ calculate_indicators_base <- function(df){
 
 #  b <- cbind(nmol_df[1], b)
 
-  perc_df_long <- merge(perc_df_long, samp_wt_df, by = 'DataFileName', all.x = TRUE)
+  perc_df_long <- merge(perc_df_long, soil_wt_df, by = 'DataFileName', all.x = TRUE)
 
 }
 
