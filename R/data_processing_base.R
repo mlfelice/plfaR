@@ -34,7 +34,7 @@ area_to_concentration_base <- function(df, standard_fnames, soil_wt_df,
 
   kval <- mean(standard_vec) / standard_conc / inj_vol
 
-  tmp_df <- merge(df, samp_wt_df, by = c('Batch', 'DataFileName'), all.x = TRUE)
+  tmp_df <- merge(df, soil_wt_df, by = c('Batch', 'DataFileName'), all.x = TRUE)
   tmp_df <- merge(tmp_df, mw_df, by.x = 'Name', by.y = 'fame')
   tmp_df <- transform(tmp_df, nmol_g = (AreaMinusBlanks / kval) *
                          (vial_vol / 2) /
