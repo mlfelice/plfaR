@@ -11,8 +11,12 @@
 #'   \item{C_PLFA}{number of carbon atoms in the lipid}
 'lipid_reference'
 
-#lipid_reference <- read_xlsx(
-#  'C:/Users/Mark/Dropbox/umn_gutknecht_postdoc/spruce_project/plfa_13c/20190521_spruce_plfa_biomarker-molecular-wt.xlsx'
-#  )
+# To update package data to reflect source edits, run code below:
 
-#devtools::use_data(lipid_reference)
+#lipid_reference <- readxl::read_xlsx(paste0('C:/Users/Mark/Dropbox/',
+#                                    'umn_gutknecht_postdoc/spruce_project/',
+#                                    'plfa_13c/20190521_spruce_plfa_biomarker',
+#                                    '-molecular-wt.xlsx')
+#)
+#
+#devtools::use_data(lipid_reference, overwrite = TRUE)
