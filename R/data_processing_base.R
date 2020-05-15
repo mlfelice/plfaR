@@ -47,9 +47,12 @@ area_to_concentration_base <- function(df, standard_fnames, soil_wt_df,
 process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference,
                               standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
                               standard = '13:0', soil_wt_df, vial_vol = 50,
-                              blanks = c('Internal std 1.raw', 'Internal std 2.raw'),
                               lipids = c('13:0', '19:0')){
 
+  # could also structure so that user can input 'blanks' arg that would
+  # supersede the SampleType from metadata
+  blanks <- unlist(soil_wt_df[grepl('[Bb]lank', soil_wt_df[['SampleType']]),
+                              'DataFileName'])
   dtype <- check_format(dat)
 
   if (dtype == 'data.frame') {
@@ -87,7 +90,7 @@ calculate_indicators_base <- function(df, soil_wt_df){
   nmol_df <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
                    timevar = 'Name', idvar = 'DataFileName',
                    direction = 'wide')
-  colnames(nmol_df)<- gsub('nmol_g.', '', colnames(nmol_df))
+  colnames(nmol_df) <- gsub('nmol_g.', '', colnames(nmol_df))
   nmol_df[is.na(nmol_df)] <- 0
 
   nmol_df['total_biomass'] <- rowSums(nmol_df[, 2:ncol(nmol_df)], na.rm = TRUE) # need to limit this to only microbial lipids
