@@ -95,7 +95,7 @@ indic_iso_base <- function(df, sample_metadata){
                      timevar = 'Name',
                      idvar = c('BatchDataFileName', 'DataFileName', 'Batch'),  # w/o 2+ idvars, some vals are equal and get dropped
                      direction = 'wide')
-  colnames(wide_df)<- gsub('d13C_corrected.', '', colnames(wide_df))
+  names(wide_df)<- gsub('d13C_corrected.', '', names(wide_df))
   #wide_df[is.na(wide_df)] <- 0
 
 
@@ -103,8 +103,10 @@ indic_iso_base <- function(df, sample_metadata){
                     wide_df['DataFileName'],
                     lapply(indicator_list,
                            function(x){
-                             tmp_df <- wide_df[, colnames(wide_df)[colnames(wide_df) %in% x]]
-                             rowMeans(as.data.frame(tmp_df), na.rm = TRUE)  # Rows with all NA will return NaN
+                             tmp_df <- wide_df[,
+                                               names(wide_df) %in% x,
+                                               drop = FALSE]
+                             rowMeans(tmp_df, na.rm = TRUE)  # Rows with all NA will return NaN
                            }
                     )
   )
