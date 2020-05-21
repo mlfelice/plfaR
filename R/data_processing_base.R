@@ -90,10 +90,12 @@ calculate_indicators_base <- function(df, soil_wt_df){
   nmol_df <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
                    timevar = 'Name', idvar = 'DataFileName',
                    direction = 'wide')
-  colnames(nmol_df) <- gsub('nmol_g.', '', colnames(nmol_df))
+  names(nmol_df) <- gsub('nmol_g.', '', names(nmol_df))
   nmol_df[is.na(nmol_df)] <- 0
 
-  nmol_df['total_biomass'] <- rowSums(nmol_df[, 2:ncol(nmol_df)], na.rm = TRUE) # need to limit this to only microbial lipids
+  # without drop = FALSE, subsetting returns vector and rowSums() errors
+  nmol_df['total_biomass'] <- rowSums(nmol_df[, 2:ncol(nmol_df), drop = FALSE],
+                                      na.rm = TRUE) # need to limit this to only microbial lipids
 
   # Convert biomarker concentrations to % of total biomass -- I think this is redundant
   #perc_df <- cbind(nmol_df['DataFileName'], nmol_df['total_biomass'],
@@ -104,14 +106,21 @@ calculate_indicators_base <- function(df, soil_wt_df){
   perc_df <- cbind(nmol_df['DataFileName'], nmol_df['total_biomass'],
                    lapply(indicator_list,
                           function(x){
-                           tmp_df <- nmol_df[, colnames(nmol_df)[colnames(nmol_df) %in% x]]
-                           rowSums(as.data.frame(tmp_df), na.rm = TRUE) / nmol_df[, 'total_biomass'] * 100
+                           tmp_df <- nmol_df[,
+                                             names(nmol_df) %in% x,
+                                             drop = FALSE]
+                           rowSums(tmp_df, na.rm = TRUE) /
+                             nmol_df[, 'total_biomass'] * 100
                           }
     )
   )
 
-  perc_df['fb'] <- rowSums(nmol_df[, colnames(nmol_df)[colnames(nmol_df) %in% indicator_list$f_lipids]]) /
-    rowSums(nmol_df[, colnames(nmol_df)[colnames(nmol_df) %in% indicator_list$b_lipids]])
+  perc_df['fb'] <- rowSums(nmol_df[,
+                                   names(nmol_df) %in% indicator_list[['f_lipids']],
+                                   drop = FALSE]) /
+                   rowSums(nmol_df[,
+                                   names(nmol_df) %in% indicator_list[['b_lipids']],
+                                   drop = FALSE])
 
   perc_df_long <- reshape(perc_df, varying = names(perc_df)[c(2:10)],
                           v.names = 'Percent_or_fraction',
