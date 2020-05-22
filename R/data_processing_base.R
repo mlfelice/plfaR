@@ -72,7 +72,6 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
 # individual lipid data and the data associated with a microbial group. This
 # looks like the approach that Jess/Cameron took. The advantage would be
 # keeping all data in one df, and simplified calculations.
-# This alternate approach could also be used for the d13C
 
 calculate_indicators_base <- function(df, soil_wt_df){
 
@@ -96,8 +95,8 @@ calculate_indicators_base <- function(df, soil_wt_df){
 
 
   nmol_df <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
-                   timevar = 'Name', idvar = 'DataFileName',
-                   direction = 'wide')
+                     timevar = 'Name', idvar = 'DataFileName',
+                     direction = 'wide')
   names(nmol_df) <- gsub('nmol_g.', '', names(nmol_df))
   nmol_df[is.na(nmol_df)] <- 0
 
@@ -114,32 +113,32 @@ calculate_indicators_base <- function(df, soil_wt_df){
   perc_df <- cbind(nmol_df['DataFileName'], nmol_df['total_biomass'],
                    lapply(indicator_list,
                           function(x){
-                           tmp_df <- nmol_df[,
-                                             names(nmol_df) %in% x,
-                                             drop = FALSE]
-                           rowSums(tmp_df, na.rm = TRUE) /
-                             nmol_df[, 'total_biomass'] * 100
+                            tmp_df <- nmol_df[,
+                                              names(nmol_df) %in% x,
+                                              drop = FALSE]
+                            rowSums(tmp_df, na.rm = TRUE) /
+                              nmol_df[, 'total_biomass'] * 100
                           }
-    )
+                   )
   )
 
   perc_df['fb'] <- rowSums(nmol_df[,
                                    names(nmol_df) %in% indicator_list[['f_lipids']],
                                    drop = FALSE]) /
-                   rowSums(nmol_df[,
-                                   names(nmol_df) %in% indicator_list[['b_lipids']],
-                                   drop = FALSE])
+    rowSums(nmol_df[,
+                    names(nmol_df) %in% indicator_list[['b_lipids']],
+                    drop = FALSE])
 
   # calculate total mass/abundance of lipids belonging to a microbial group
   nm_df <- cbind(nmol_df['DataFileName'],
-                   lapply(indicator_list,
-                          function(x){
-                            tmp_df <- nmol_df[,
-                                              names(nmol_df) %in% x,
-                                              drop = FALSE]
-                            rowSums(tmp_df, na.rm = TRUE)
-                          }
-                   )
+                 lapply(indicator_list,
+                        function(x){
+                          tmp_df <- nmol_df[,
+                                            names(nmol_df) %in% x,
+                                            drop = FALSE]
+                          rowSums(tmp_df, na.rm = TRUE)
+                        }
+                 )
   )
 
   perc_df_long <- reshape(perc_df, varying = names(perc_df)[c(2:10)],
@@ -148,22 +147,25 @@ calculate_indicators_base <- function(df, soil_wt_df){
                           times = names(perc_df)[c(2:10)], direction = 'long')
 
   nm_df_long <- reshape(nm_df, varying = names(nm_df)[c(2:9)],
-                          v.names = 'nmol_g',
-                          timevar = 'Indicator', idvar = 'DataFileName',
-                          times = names(perc_df)[c(2:9)], direction = 'long')
+                        v.names = 'nmol_g',
+                        timevar = 'Indicator', idvar = 'DataFileName',
+                        times = names(perc_df)[c(2:9)], direction = 'long')
 
-#  b <- as.data.frame(sapply(a,'['))
+  #  b <- as.data.frame(sapply(a,'['))
 
-#  b <- lapply(indicator_list, function(x){
-#    tmp_df <- nmol_df[, colnames(nmol_df)[colnames(nmol_df) %in% x]]
-#    rowSums(as.data.frame(tmp_df), na.rm = TRUE)
-#  }
-#  )
+  #  b <- lapply(indicator_list, function(x){
+  #    tmp_df <- nmol_df[, colnames(nmol_df)[colnames(nmol_df) %in% x]]
+  #    rowSums(as.data.frame(tmp_df), na.rm = TRUE)
+  #  }
+  #  )
 
 
-#  b <- cbind(nmol_df[1], b)
+  #  b <- cbind(nmol_df[1], b)
 
-  perc_df_long <- merge(perc_df_long, soil_wt_df, by = 'DataFileName', all.x = TRUE)
+  perc_df_long <- merge(perc_df_long, soil_wt_df,
+                        by = 'DataFileName', all.x = TRUE)
+  perc_df_long <- merge(perc_df_long, nm_df_long,
+                        by = c('DataFileName', 'Indicator'), all.x = TRUE)
 
 }
 
