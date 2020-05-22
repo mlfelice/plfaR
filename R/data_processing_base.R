@@ -65,7 +65,15 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
 }
 
 ###########
-# TO DO: output info on the warnings that are thrown if there are duplicates during reshape
+# TO DO: output info on the warnings that are thrown if there are duplicates
+# during reshape
+# An alternative to this approach is to calculate mol% for each lipid and just
+# attach the name of the group it represents, so that final dataframe has both
+# individual lipid data and the data associated with a microbial group. This
+# looks like the approach that Jess/Cameron took. The advantage would be
+# keeping all data in one df, and simplified calculations.
+# This alternate approach could also be used for the d13C
+
 calculate_indicators_base <- function(df, soil_wt_df){
 
   indicator_list <- list(f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
@@ -122,10 +130,27 @@ calculate_indicators_base <- function(df, soil_wt_df){
                                    names(nmol_df) %in% indicator_list[['b_lipids']],
                                    drop = FALSE])
 
+  # calculate total mass/abundance of lipids belonging to a microbial group
+  nm_df <- cbind(nmol_df['DataFileName'],
+                   lapply(indicator_list,
+                          function(x){
+                            tmp_df <- nmol_df[,
+                                              names(nmol_df) %in% x,
+                                              drop = FALSE]
+                            rowSums(tmp_df, na.rm = TRUE)
+                          }
+                   )
+  )
+
   perc_df_long <- reshape(perc_df, varying = names(perc_df)[c(2:10)],
                           v.names = 'Percent_or_fraction',
                           timevar = 'Indicator', idvar = 'DataFileName',
                           times = names(perc_df)[c(2:10)], direction = 'long')
+
+  nm_df_long <- reshape(nm_df, varying = names(nm_df)[c(2:9)],
+                          v.names = 'nmol_g',
+                          timevar = 'Indicator', idvar = 'DataFileName',
+                          times = names(perc_df)[c(2:9)], direction = 'long')
 
 #  b <- as.data.frame(sapply(a,'['))
 
