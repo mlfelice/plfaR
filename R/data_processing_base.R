@@ -76,87 +76,93 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
 calculate_indicators_base <- function(df, soil_wt_df){
 
   indicator_list <- list(f_lipids = c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
-                         b_lipids = c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso',
-                                       '16:0 iso', '16:1 w7c', '16:0 10me', '17:0 iso', '17:0 anteiso',
-                                       '18:1 w9t', '18:1 w7c', '18:0 10me'),
-                         gram_pos_lipids = c('13:0 iso', '13:0 anteiso', '15:0 iso', '15:0 anteiso',
-                                              '17:iso', '17:0 anteiso'),
-                         gram_neg_lipids = c('14:0 3OH', '16:1 w7c', '16:1 w9c', '18:1 w7c',
-                                              '18:1 w9t'),
+                         b_lipids = c('13:0 iso', '13:0 anteiso', '14:0 3OH',
+                                      '15:0 iso', '15:0 anteiso', '16:0 iso',
+                                      '16:1 w7c', '16:0 10me', '17:0 iso',
+                                      '17:0 anteiso', '18:1 w9t', '18:1 w7c',
+                                      '18:0 10me'),
+                         gram_pos_lipids = c('13:0 iso', '13:0 anteiso',
+                                             '15:0 iso', '15:0 anteiso',
+                                             '17:iso', '17:0 anteiso'),
+                         gram_neg_lipids = c('14:0 3OH', '16:1 w7c',
+                                             '16:1 w9c', '18:1 w7c',
+                                             '18:1 w9t'),
                          actino_lipids = c('16:0 10me', '18:0 10me'),
                          amf_lipids = c('16:1 w5c'),
                          s_fungi_lipids = c('18:1 w9c', '18:1 w6,9c'),
-                         anaerobe_lipids = c('19:0 cyclo')
+                         anaerobe_lipids = c('19:0 cyclo'),
+                         # May need to redefine the total_biomass. Right now, it's just all of the
+                         # indicator lipids. Not sure if there should be others as well
+                         total_biomass = c("16:1 w5c", "18:1 w9c", "18:2 w6,9c",
+                                           "13:0 iso", "13:0 anteiso",
+                                           "14:0 3OH", "15:0 iso",
+                                           "15:0 anteiso", "16:0 iso",
+                                           "16:1 w7c", "16:0 10me", "17:0 iso",
+                                           "17:0 anteiso", "18:1 w9t",
+                                           "18:1 w7c", "18:0 10me", "17:iso",
+                                           "16:1 w9c", "18:1 w6,9c",
+                                           "19:0 cyclo")
   )
 
-  nmol_df <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
+  df_wide <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
                      timevar = 'Name', idvar = 'DataFileName',
                      direction = 'wide')
-  names(nmol_df) <- gsub('nmol_g.', '', names(nmol_df))
-  nmol_df[is.na(nmol_df)] <- 0
+  names(df_wide) <- gsub('nmol_g.', '', names(df_wide))
+  # The reshape step will produce NA for any lipids that were not detected.
+  # Some entries will have 0 due to subtracting the standards (only)
+
+  df_wide[is.na(df_wide)] <- 0 # replace NA with 0 for calculations
 
   # without drop = FALSE, subsetting returns vector and rowSums() errors
-  nmol_df['total_biomass'] <- rowSums(nmol_df[, 2:ncol(nmol_df), drop = FALSE],
-                                      na.rm = TRUE) # need to limit this to only microbial lipids
+  total_biomass <- rowSums(df_wide[,
+                                   names(df_wide) %in% indicator_list[['total_biomass']],
+                                   drop = FALSE],
+                           na.rm = TRUE) # need to limit this to only microbial lipids
 
-  # Convert biomarker concentrations to % of total biomass -- I think this is redundant
-  #perc_df <- cbind(nmol_df['DataFileName'], nmol_df['total_biomass'],
-  #                 lapply(nmol_df[, 2:(ncol(nmol_df)-1)],
-  #                        function(x){x/nmol_df[['total_biomass']] * 100}))
+  # Convert biomarker concentrations to % of total biomass
+  # can use this code chunk if we go the route of calcs for indiv biomarkers
+  #perc_df <- cbind(df_wide['DataFileName'], total_biomass,
+  #                 lapply(df_wide[, 2:(ncol(df_wide))],
+  #                        function(x){x/total_biomass * 100}))
 
-
-  perc_df <- cbind(nmol_df['DataFileName'], nmol_df['total_biomass'],
-                   lapply(indicator_list,
-                          function(x){
-                            tmp_df <- nmol_df[,
-                                              names(nmol_df) %in% x,
-                                              drop = FALSE]
-                            rowSums(tmp_df, na.rm = TRUE) /
-                              nmol_df[, 'total_biomass'] * 100
-                          }
-                   )
-  )
-
-  perc_df['fb'] <- rowSums(nmol_df[,
-                                   names(nmol_df) %in% indicator_list[['f_lipids']],
-                                   drop = FALSE]) /
-    rowSums(nmol_df[,
-                    names(nmol_df) %in% indicator_list[['b_lipids']],
-                    drop = FALSE])
-
-  # calculate total mass/abundance of lipids belonging to a microbial group
-  nm_df <- cbind(nmol_df['DataFileName'],
+  # aggregate lipid nmol_g by microbial group (sum)
+  nm_df <- cbind(df_wide['DataFileName'],
                  lapply(indicator_list,
                         function(x){
-                          tmp_df <- nmol_df[,
-                                            names(nmol_df) %in% x,
+                          tmp_df <- df_wide[,
+                                            names(df_wide) %in% x,
                                             drop = FALSE]
                           rowSums(tmp_df, na.rm = TRUE)
                         }
                  )
   )
 
-  perc_df_long <- reshape(perc_df, varying = names(perc_df)[c(2:10)],
-                          v.names = 'Percent_or_fraction',
-                          timevar = 'Indicator', idvar = 'DataFileName',
-                          times = names(perc_df)[c(2:10)], direction = 'long')
+  perc_df <- cbind(nm_df['DataFileName'],
+                   lapply(names(indicator_list),
+                          function(x){ nm_df[x] / total_biomass * 100}
+                   )
+  )
 
-  nm_df_long <- reshape(nm_df, varying = names(nm_df)[c(2:9)],
+  # NaN's produced from 0/0 (if there was no total_biomass and no detected lipids for an indicator)
+
+  perc_df['f_to_b'] <- nm_df[['f_lipids']] / nm_df[['b_lipids']] * 100
+  #f_to_b is also appended as a column now, will be treated like other indicators if we reshape
+
+  ncp <- ncol(perc_df)  # define this based on ncol so doesn't break if we change
+  # biomarkers
+  perc_df_long <- reshape(perc_df, varying = names(perc_df)[c(2:ncp)],
+                          v.names = 'Percent',
+                          timevar = 'Indicator', idvar = 'DataFileName',
+                          times = names(perc_df)[c(2:ncp)], direction = 'long')
+
+  ncn <- ncol(nm_df)  # define this based on ncol so doesn't break if we change
+  # biomarkers
+  nm_df_long <- reshape(nm_df, varying = names(nm_df)[c(2:ncn)],
                         v.names = 'nmol_g',
                         timevar = 'Indicator', idvar = 'DataFileName',
-                        times = names(nm_df)[c(2:9)], direction = 'long')
+                        times = names(nm_df)[c(2:ncn)], direction = 'long')
 
-  #  b <- as.data.frame(sapply(a,'['))
-
-  #  b <- lapply(indicator_list, function(x){
-  #    tmp_df <- nmol_df[, colnames(nmol_df)[colnames(nmol_df) %in% x]]
-  #    rowSums(as.data.frame(tmp_df), na.rm = TRUE)
-  #  }
-  #  )
-
-
-  #  b <- cbind(nmol_df[1], b)
-
+  # combine the mol%, absolute abundance, and metadata
   perc_df_long <- merge(perc_df_long, soil_wt_df,
                         by = 'DataFileName', all.x = TRUE)
   perc_df_long <- merge(perc_df_long, nm_df_long,
