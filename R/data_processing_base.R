@@ -144,7 +144,7 @@ calculate_indicators_base <- function(df, soil_wt_df){
   nm_df_long <- reshape(nm_df, varying = names(nm_df)[c(2:9)],
                         v.names = 'nmol_g',
                         timevar = 'Indicator', idvar = 'DataFileName',
-                        times = names(perc_df)[c(2:9)], direction = 'long')
+                        times = names(nm_df)[c(2:9)], direction = 'long')
 
   #  b <- as.data.frame(sapply(a,'['))
 
