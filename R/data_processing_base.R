@@ -75,24 +75,19 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
 
 calculate_indicators_base <- function(df, soil_wt_df){
 
-  indicator_list <- list(f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
-                         b_lipids <- c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso',
+  indicator_list <- list(f_lipids = c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
+                         b_lipids = c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso',
                                        '16:0 iso', '16:1 w7c', '16:0 10me', '17:0 iso', '17:0 anteiso',
                                        '18:1 w9t', '18:1 w7c', '18:0 10me'),
-                         gram_pos_lipids <- c('13:0 iso', '13:0 anteiso', '15:0 iso', '15:0 anteiso',
+                         gram_pos_lipids = c('13:0 iso', '13:0 anteiso', '15:0 iso', '15:0 anteiso',
                                               '17:iso', '17:0 anteiso'),
-                         gram_neg_lipids <- c('14:0 3OH', '16:1 w7c', '16:1 w9c', '18:1 w7c',
+                         gram_neg_lipids = c('14:0 3OH', '16:1 w7c', '16:1 w9c', '18:1 w7c',
                                               '18:1 w9t'),
-                         actino_lipids <- c('16:0 10me', '18:0 10me'),
-                         amf_lipids <- c('16:1 w5c'),
-                         s_fungi_lipids <- c('18:1 w9c', '18:1 w6,9c'),
-                         anaerobe_lipids <- c('19:0 cyclo')
+                         actino_lipids = c('16:0 10me', '18:0 10me'),
+                         amf_lipids = c('16:1 w5c'),
+                         s_fungi_lipids = c('18:1 w9c', '18:1 w6,9c'),
+                         anaerobe_lipids = c('19:0 cyclo')
   )
-  # Naming list facilitates naming the output of calcs
-  names(indicator_list) <- c('f_lipids', 'b_lipids', 'gram_pos_lipids', 'gram_neg_lipids',
-                             'actino_lipids', 'amf_lipids', 's_fungi_lipids',
-                             'anaerobe_lipids')
-
 
   nmol_df <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
                      timevar = 'Name', idvar = 'DataFileName',
