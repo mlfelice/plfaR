@@ -69,7 +69,8 @@ correct_iso_base2 <- function(df, d13c_correction, meth_13c_df,
 # Does the methanol correction have to be corrected for too?
 # Or is this number already include instrument correction?
 
-
+# TO DO: make this calc and indicator lipids consistent with the nmol
+# processing function
 indic_iso_base <- function(df, sample_metadata){
 
   indicator_list <- list(f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
