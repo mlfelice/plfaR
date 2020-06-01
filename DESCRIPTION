@@ -1,7 +1,7 @@
 Package: plfayer
 Type: Package
 Title: Interface for Analyzing IonVantage 13C-PLFA Data
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R: person("Mark", "Felice", email = "mark.l.felice@gmail.com", 
   role = c("aut", "cre"))
 Maintainer: The package maintainer <yourself@somewhere.net>

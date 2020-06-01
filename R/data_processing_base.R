@@ -1,66 +1,145 @@
-subtract_blanks_base <- function(df, blanks = c('1.raw', '2.raw'),
-                            lipids = c('13:0', '19:0')){  # version that subtracts avg of blanks only
+subtract_blanks_base <- function(df, blanks){  # version that subtracts avg of blanks only
+  # Inputs:
+  #   df (dataframe): peak list dataframe
+  #   blanks (list): named list with list item names corresponding to lipid,
+  #     and each item consisting of a character vector containing the
+  #     DataFileName corresponding to the samples to use for blanks
+  #     subtraction. Blanks are non-experimental samples containing surrogate
+  #     or internal standards also present in experimental samples that need
+  #     to be subtracted from experimental samples. In the Gutknecht lab, this
+  #     is typically 13:0 and 19:0.
+  #
+  #
+  # Would it make more sense to just add info on the role of sample in the
+  # metadata?
 
-  blanks_df <- df[df[['DataFileName']] %in% blanks, ]
+  # TO DO: add ability to check list names against lipid names in the reference
+  # so that it throws an error if you've chosen a non-existant lipid
+
+  # Filter peak list dataframe for blank samples (defined by func arg)
+  b_lipids <- names(blanks)
+  blanks_df <- do.call('rbind',
+                       lapply(b_lipids,
+                              function(x){df[df[['DataFileName']] %in% blanks[[x]] &
+                                               df[['Name']] == x, ]}))
+
+  # Average the peak area of each lipid within each batch
+  # Resulting df has 3 cols: Batch, Name, and TotalPeakArea1
   blanks_df <- aggregate(TotalPeakArea1 ~ Batch + Name,
                          FUN = function(x){
-                           blank_area <- mean(x, na.rm = TRUE)
+                           mean(x, na.rm = TRUE)  # modified
                          }, data = blanks_df
-                      )
-  blanks_df <- blanks_df[blanks_df[['Name']] %in% lipids, ]
+  )
 
-  names(blanks_df)[names(blanks_df) == 'TotalPeakArea1'] <- 'StdArea'
+  # Rename TotalPeakArea1 to StdArea so that resulting df shows value used for
+  # blank/peak subtraction when we merge
+  names(blanks_df)[names(blanks_df) == 'TotalPeakArea1'] <- 'BlnkArea'
 
   full_df <- merge(df, blanks_df, by = c('Batch', 'Name'), all.x = TRUE)
   #full_df[is.na(full_df[['StdArea']]), 'StdArea'] <- 0
+  # After merging, lipids other than the blanks you are subtracting will be NA
+  # This converts to 0, so that the arithmetic produces a number rather than
+  # NA
   full_df <- transform(full_df,
-                       StdArea = ifelse(is.na(StdArea), 0, StdArea))
+                       BlnkArea = ifelse(is.na(BlnkArea), 0, BlnkArea))
   full_df <- transform(full_df,
-                       AreaMinusBlanks = ifelse(TotalPeakArea1 - StdArea > 0,
-                                                TotalPeakArea1 - StdArea, 0))
+                       AreaMinusBlanks = ifelse(TotalPeakArea1 - BlnkArea > 0,
+                                                TotalPeakArea1 - BlnkArea, 0))
 
   return(full_df)
 }
 
-area_to_concentration_base <- function(df, standard_fnames, soil_wt_df,
-                                       mw_df = lipid_reference,
-                                       standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
-                                       standard = standard, vial_vol = vial_vol){
+area_to_concentration_base <- function(df, avg_std_area, soil_wt_df,
+                                        mw_df = lipid_reference,
+                                        standard_conc, inj_vol, standard, #standard_fnames should be blanks, not 13:0 standard, I think
+                                        vial_vol){
+  # standard fnames seems kind of redundant, since we're just pulling the
+  # Inputs:
+  #   df (dataframe):
+  #   standard_fnames (???): replaced by avg_std_area. This was the vector of
+  #     DataFileName s associated with standards we wanted to use
+  #   soil_wt_df (numeric):
+  #   mw_df: (dataframe):
+  #   standard_conc (numeric):
+  #   inj_vol (numeric):
+  #   standard (string):
+  #   vial_vol (numeric):
+  #   standard_vec (numeric vector): This is a vector of peak areas for
+  #     the standard biomarker (usu 13:0) used for kval calc. These are
+  #     associated with the DataFileNames defined by standard_fnames.
+  #     I think it makes more sense to provide only the standard vector or avg
+  #     peak area as an arg. #### working on changing this now ###
+  #     ### This is now replaced by avg_std_area
+  #
 
+  # moving this to process_peak_area2()
+  # standard_vec <- unlist(df[df[['DataFileName']] %in% standard_fnames &
+  #                            df[['Name']] == standard, 'TotalPeakArea1'])
 
+  kval <- avg_std_area / standard_conc / inj_vol
 
-  standard_vec <- unlist(df[df[['DataFileName']] %in% standard_fnames &
-                             df[['Name']] == standard, 'TotalPeakArea1'])
-
-  kval <- mean(standard_vec) / standard_conc / inj_vol
-
+  # Merge the metadata and lipid reference dataframs to the input peak list
+  # These have parameters needed for calculations
   tmp_df <- merge(df, soil_wt_df, by = c('Batch', 'DataFileName'), all.x = TRUE)
   tmp_df <- merge(tmp_df, mw_df, by.x = 'Name', by.y = 'fame')
+
+  # Run actual calculation applying kval to all peak areas
   tmp_df <- transform(tmp_df, nmol_g = (AreaMinusBlanks / kval) *
-                         (vial_vol / 2) /
-                         (molecular_weight_g_per_mol * SampleWt))
+                        (vial_vol / 2) /
+                        (molecular_weight_g_per_mol * SampleWt))
 
   return(tmp_df)
 
 }
 
 process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference,
-                              standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
-                              standard = '13:0', soil_wt_df, vial_vol = 50,
-                              lipids = c('13:0', '19:0')){
+                                   standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
+                                   standard = '13:0', soil_wt_df, vial_vol = 50,
+                                   blanks){
 
+  # Inputs:
+  #   dat (dataframe or list?):
+  #   standard_fnames (char vector):
+  #   mw_df (dataframe):
+  #   standard_conc (numeric):
+  #   inj_vol (numeric):
+  #   standard (string):
+  #   vial_vol (numeric):
+  #   blanks (list): named list with list item names corresponding to lipid,
+  #     and each item consisting of a character vector containing the
+  #     DataFileName corresponding to the samples to use for blanks
+  #     subtraction. Blanks are non-experimental samples containing surrogate
+  #     or internal standards also present in experimental samples that need
+  #     to be subtracted from experimental samples. In the Gutknecht lab, this
+  #     is typically 13:0 and 19:0.
+
+
+  #### moved from area_to_concentration_base2()
+  # This creates a numeric vector of the standard (usu 13:0) values
+  # associated with supplied DataFileName
+  standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
+                               dat[['Name']] == standard, 'TotalPeakArea1'])
+  avg_std_area <- mean(standard_vec)
+  # This is what gets used for applying
+  #kval, values from subtrac_blanks_base() only used for subtracting
+
+  ####
   # could also structure so that user can input 'blanks' arg that would
   # supersede the SampleType from metadata
-  blanks <- unlist(soil_wt_df[grepl('[Bb]lank', soil_wt_df[['SampleType']]),
-                              'DataFileName'])
+  # This is the old way. Probably best to do something where the metadata
+  # tells which to use
+  #blanks <- unlist(soil_wt_df[grepl('[Bb]lank', soil_wt_df[['SampleType']]),
+  #                            'DataFileName'])
+  ###
   dtype <- check_format(dat)
 
   if (dtype == 'data.frame') {
-    tmp_df <- subtract_blanks_base(dat, blanks = blanks,
-                    lipids = c('13:0', '19:0'))
-    area_to_concentration_base(tmp_df, standard_fnames, mw_df = lipid_reference,
-                      standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
-                      standard = standard, soil_wt_df, vial_vol = vial_vol)
+    tmp_df <- subtract_blanks_base(dat, blanks)
+    #tmp_df <- subtract_blanks_base2(dat, blanks = blanks,
+    #                               lipids = c('13:0', '19:0'))
+    area_to_concentration_base(tmp_df, avg_std_area, mw_df = lipid_reference,
+                               standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
+                               standard = standard, soil_wt_df, vial_vol = vial_vol)
   }
 }
 
