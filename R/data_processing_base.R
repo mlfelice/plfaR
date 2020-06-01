@@ -17,11 +17,14 @@ subtract_blanks_base <- function(df, blanks){  # version that subtracts avg of b
   # so that it throws an error if you've chosen a non-existant lipid
 
   # Filter peak list dataframe for blank samples (defined by func arg)
+  # The [[1]] is necessary, as subsetting list by name returns a list, even
+  # with double brackets
   b_lipids <- names(blanks)
   blanks_df <- do.call('rbind',
                        lapply(b_lipids,
-                              function(x){df[df[['DataFileName']] %in% blanks[[x]] &
-                                               df[['Name']] == x, ]}))
+                              function(x){df[df[['DataFileName']] %in%
+                                               blanks[[x]][[1]] &
+                                             df[['Name']] == x, ]}))
 
   # Average the peak area of each lipid within each batch
   # Resulting df has 3 cols: Batch, Name, and TotalPeakArea1
