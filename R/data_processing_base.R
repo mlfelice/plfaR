@@ -23,7 +23,7 @@ subtract_blanks_base <- function(df, blanks){  # version that subtracts avg of b
   blanks_df <- do.call('rbind',
                        lapply(b_lipids,
                               function(x){df[df[['DataFileName']] %in%
-                                               blanks[[x]][[1]] &
+                                               blanks[[x]] &
                                              df[['Name']] == x, ]}))
 
   # Average the peak area of each lipid within each batch
@@ -181,7 +181,7 @@ calculate_indicators_base <- function(df, soil_wt_df){
                                            '17:0 cyclo', '17:1', '17:1 iso',
                                            '18:0', '18:0 10me', '18:1 w9c',
                                            '18:1 w9t', '18:2 w6,9c', '19:0',
-                                           '19:0 cyclo', '19:1')
+                                           '19:0 cyclo', '19:1', '20:0')
   )
 
   df_wide <- reshape(data = df[c('DataFileName', 'Name', 'nmol_g')],
