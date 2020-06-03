@@ -19,4 +19,4 @@
 #                                    '-molecular-wt.xlsx')
 #)
 #
-#devtools::use_data(lipid_reference, overwrite = TRUE)
+#usethis::use_data(lipid_reference, overwrite = TRUE)
