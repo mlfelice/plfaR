@@ -53,6 +53,10 @@ import_batch_base <- function(file_path){
 
   tmp_df <- tmp_df[!is.na(tmp_df[['Name']]), ]  # Remove unnamed peaks
   tmp_df[['BatchDataFileName']] <- paste(tmp_df[['Batch']], tmp_df[['DataFileName']], sep = '_')
+
+  # Convert area and d13C columns to numeric if not already
+  tmp_df['TotalPeakArea1'] <- as.numeric(tmp_df[['TotalPeakArea1']])
+  tmp_df['DisplayDelta1'] <- as.numeric(tmp_df[['DisplayDelta1']])
     # add if statement so that if there is no batch column, but batch name is in
     #filename, it can create a batch column
 #    mutate(DisplayDelta1 = as.numeric(DisplayDelta1),
