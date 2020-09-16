@@ -1,4 +1,4 @@
-Package: plfayer
+Package: plfaR
 Type: Package
 Title: Interface for Analyzing IonVantage 13C-PLFA Data
 Version: 0.0.0.9001
