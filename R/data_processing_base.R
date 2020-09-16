@@ -83,7 +83,13 @@ area_to_concentration_base <- function(df, avg_std_area, soil_wt_df,
 
   # Merge the metadata and lipid reference dataframs to the input peak list
   # These have parameters needed for calculations
-  tmp_df <- merge(df, soil_wt_df, by = c('Batch', 'DataFileName'), all.x = TRUE)
+  # If/else statement ensures Batch is same type (char/num) between df,
+  # otherwise merge would fail silently
+  if(class(df[['Batch']]) == class(soil_wt_df[['Batch']])){
+    tmp_df <- merge(df, soil_wt_df, by = c('Batch', 'DataFileName'),
+                    all.x = TRUE)
+  } else{stop('Batch column type does not match between df and soil_wt_df')}
+
   tmp_df <- merge(tmp_df, mw_df, by.x = 'Name', by.y = 'fame')
 
   # Run actual calculation applying kval to all peak areas
@@ -242,9 +248,13 @@ calculate_indicators_base <- function(df, soil_wt_df){
                         timevar = 'Indicator', idvar = 'DataFileName',
                         times = names(nm_df)[c(2:ncn)], direction = 'long')
 
+
   # combine the mol%, absolute abundance, and metadata
-  perc_df_long <- merge(perc_df_long, soil_wt_df,
-                        by = 'DataFileName', all.x = TRUE)
+  if(class(df[['Batch']]) == class(soil_wt_df[['Batch']])){
+    perc_df_long <- merge(perc_df_long, soil_wt_df,
+                          by = 'DataFileName', all.x = TRUE)
+  } else{stop('Batch column type does not match between df and soil_wt_df')}
+
   perc_df_long <- merge(perc_df_long, nm_df_long,
                         by = c('DataFileName', 'Indicator'), all.x = TRUE)
 
