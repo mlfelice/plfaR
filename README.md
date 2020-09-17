@@ -1,23 +1,40 @@
 plfaR Readme
 ================
 
-# plfaR
-
 This is a package for running QC on and processing named PLFA data. The
 three major components are calculating lipid concentrations, biomarker
 concentrations and mol %, and d13C isotope data, with output in a format
 that can easily be further analyzed using tidyverse and statistical
 packages in R.
 
-# Basic Workflow
+# Getting started
 
-## Summary
+## Installation
+
+If the devtools package isn’t already installed, download and install
+from CRAN.
+
+``` r
+install.packages("devtools")
+```
+
+Install plfaR package.
+
+``` r
+devtools::install_github(repo = 'mlfelice/plfaR')
+```
+
+The package is now ready for processing PLFA data.
+
+## Basic Workflow
+
+### Summary
 
 This vignette shows an example workflow for basic importing and
 processing of PLFA data from raw named peak lists to lipid and biomarker
 concentrations and mol %.
 
-## Processing
+### Processing
 
 Import packages
 
@@ -101,7 +118,7 @@ source_dir <- 'C:\\Users\\Mark\\Desktop\\temp plfa practice - can delete wheneve
 source_file <- 'spruce_2015_b14_example.xlsx'
 
 # Imported data is dataframe with cols listed above
-peak_list <- import_batch_base(paste0(source_dir, '/', source_file))
+peak_list <- import_batch(paste0(source_dir, '/', source_file))
 ```
 
 Run a QC tests on the data. If there are any issues with the data, an
@@ -116,7 +133,7 @@ Sphagnum, so should be present in any peat samples. This can likely be
 ignored if working with mineral soils.
 
 ``` r
-qc_df <- quality_check_base(peak_list)
+qc_df <- quality_check(peak_list)
 ```
 
     ## Batch: B14
@@ -138,8 +155,8 @@ containing the sample names for the blanks (should only have 13:0 and
 19:0) and standards (ie. the samples on which you want to base kval
 calculations.
 
-NOTE: process\_peak\_area\_base() also has several other parameters that
-can be changed, but which are constant in our lab.
+NOTE: process\_peak\_area() also has several other parameters that can
+be changed, but which are constant in our lab.
 
 ``` r
 # Create vector of filenames of standards (can also manually supply)
@@ -154,7 +171,7 @@ blanks <- list( '13:0' = stds,
                            'Control 2 for plots 19 20  21.raw)'))
 
 # Convert the peak areas to concentration (nmol/g dry soil)
-conc_df <- process_peak_area_base(peak_list, 
+conc_df <- process_peak_area(peak_list, 
                                   blanks = blanks, 
                                   standard_fnames = stds,
                                   soil_wt_df = md_1415)
@@ -167,12 +184,12 @@ as well as their mol %.
 # I'm removing 16:0 and 19:0 peaks for this analysis
 # use the output from concentration calcs as the input
 indicators_df <- filter(conc_df, !Name %in% c('16:0', '19:0')) %>%
-                 calculate_indicators_base(soil_wt_df = md_1415)
+                 calculate_indicators(soil_wt_df = md_1415)
 ```
 
 These dataframes can now be analyzed with your preferred stats pipeline.
 
-## Apendix
+### Other information
 
 The following are the groupings of lipids used for each biomarker group.
 
