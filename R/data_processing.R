@@ -11,7 +11,7 @@
 #' Might want to integrate id of blanks etc. in the metadata.
 #'
 #'@param \code{df} Dataframe or tibble with NormalizedPeakArea. Use the output
-#'from \code{normalize_area()} function.
+#'from \code{normalize_area_tidy()} function.
 #'
 #'@param \code{blanks}
 #'
@@ -22,7 +22,7 @@
 #'@examples
 #'
 #'
-subtract_blanks <- function(df, blanks = c('100.raw', '101.raw'),
+subtract_blanks_tidy <- function(df, blanks = c('100.raw', '101.raw'),
                             lipids = c('13:0', '19:0')){  # version that subtracts avg of blanks only
 
   blanks_df <- df %>%
@@ -89,7 +89,7 @@ subtract_blanks <- function(df, blanks = c('100.raw', '101.raw'),
 # Now that the biomarker calcs returns a dataframe, for lipid concentrations, can just stop analysis after
 # this point
 # An advantage of doing all in one/appending kvals to the df is you can keep df as output and use pipes
-calc_concentration <- function(df, standard_fnames, mw_df = lipid_reference, standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
+calc_concentration_tidy <- function(df, standard_fnames, mw_df = lipid_reference, standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
                        standard = '13:0', soil_wt_df, vial_vol = 20){
   kval_df <- df[which(df[['DataFileName']] %in% standard_fnames &
                         df[['Name']] == standard),] %>%
@@ -126,7 +126,7 @@ calc_concentration <- function(df, standard_fnames, mw_df = lipid_reference, sta
 
 # consider returning a separate summary dataframe for the summary values
 # keeping the lipids makes for long df with lots of NA
-calc_biomarkers <- function(df){
+calc_biomarkers_tidy <- function(df){
   f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c') # consider loading these with the package
   b_lipids <- c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso',
                 '16:0 iso', '16:1 w7c', '16:0 10me', '17:0 iso', '17:0 anteiso',
@@ -169,7 +169,7 @@ calc_biomarkers <- function(df){
 
 }
 
-clean_nmol_df <- function(df){
+clean_nmol_df_tidy <- function(df){
   clean_df <- df %>%
     mutate(Replicate = str_extract(SampleID, '(?<=[0-9])[A-Za-z]*(?=_)'),
            Year = str_extract(SampleID, '(?<=_)[0-9]+(?=_)'),
@@ -208,7 +208,7 @@ clean_nmol_df <- function(df){
 # Is there any advantage to keeping the old cols (eg. TotalPeakArea1)
 # Need to refactor/optimize this function - got it working, but was focused
 # on function over form.
-normalize_area <- function(df){
+normalize_area_tidy <- function(df){
   cf_numerator_df <- df %>%
     group_by(Batch, DataFileName, BatchDataFileName, Name) %>% #in case dups here on purpose, this merges them
     summarise(TotalPeakArea1 = sum(TotalPeakArea1)) %>%

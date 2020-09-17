@@ -14,7 +14,7 @@
 #'
 
 # Maybe instead, we just have a display function that converts to wide
-import_batch <- function(file_path){
+import_batch_tidy <- function(file_path){
   # This function imports named peak list for downstream processing/analysis
   #
   # Args:
@@ -56,10 +56,10 @@ import_batch <- function(file_path){
 # Need to modify so that both work on single dataframe (or list of df)
 # Also want to modify this so that you can either supply a directory or
 # a list of file paths
-import_batch_multi <- function(dir, keyword){
+import_batch_multi_tidy <- function(dir, keyword){
   batch_files <- list.files(path = source_dir, pattern = keyword,
                             full.names = TRUE) %>%
-    lapply(import_batch)
+    lapply(import_batch_tidy)
 
   all_batch_df <- bind_rows(batch_files)
   invisible(all_batch_df)

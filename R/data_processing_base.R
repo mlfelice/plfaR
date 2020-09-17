@@ -1,4 +1,4 @@
-subtract_blanks_base <- function(df, blanks){  # version that subtracts avg of blanks only
+subtract_blanks <- function(df, blanks){  # version that subtracts avg of blanks only
   # Inputs:
   #   df (dataframe): peak list dataframe
   #   blanks (list): named list with list item names corresponding to lipid,
@@ -52,7 +52,7 @@ subtract_blanks_base <- function(df, blanks){  # version that subtracts avg of b
   return(full_df)
 }
 
-area_to_concentration_base <- function(df, avg_std_area, soil_wt_df,
+area_to_concentration <- function(df, avg_std_area, soil_wt_df,
                                         mw_df = lipid_reference,
                                         standard_conc, inj_vol, standard, #standard_fnames should be blanks, not 13:0 standard, I think
                                         vial_vol){
@@ -101,7 +101,7 @@ area_to_concentration_base <- function(df, avg_std_area, soil_wt_df,
 
 }
 
-process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference,
+process_peak_area <- function(dat, standard_fnames, mw_df = lipid_reference,
                                    standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
                                    standard = '13:0', soil_wt_df, vial_vol = 50,
                                    blanks){
@@ -123,14 +123,14 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
   #     is typically 13:0 and 19:0.
 
 
-  #### moved from area_to_concentration_base2()
+  #### moved from area_to_concentration2()
   # This creates a numeric vector of the standard (usu 13:0) values
   # associated with supplied DataFileName
   standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
                                dat[['Name']] == standard, 'TotalPeakArea1'])
   avg_std_area <- mean(standard_vec)
   # This is what gets used for applying
-  #kval, values from subtrac_blanks_base() only used for subtracting
+  #kval, values from subtract_blanks() only used for subtracting
 
   ####
   # could also structure so that user can input 'blanks' arg that would
@@ -143,10 +143,10 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
   dtype <- check_format(dat)
 
   if (dtype == 'data.frame') {
-    tmp_df <- subtract_blanks_base(dat, blanks)
-    #tmp_df <- subtract_blanks_base2(dat, blanks = blanks,
+    tmp_df <- subtract_blanks(dat, blanks)
+    #tmp_df <- subtract_blanks2(dat, blanks = blanks,
     #                               lipids = c('13:0', '19:0'))
-    area_to_concentration_base(tmp_df, avg_std_area, mw_df = lipid_reference,
+    area_to_concentration(tmp_df, avg_std_area, mw_df = lipid_reference,
                                standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
                                standard = standard, soil_wt_df, vial_vol = vial_vol)
   }
@@ -161,7 +161,7 @@ process_peak_area_base <- function(dat, standard_fnames, mw_df = lipid_reference
 # looks like the approach that Jess/Cameron took. The advantage would be
 # keeping all data in one df, and simplified calculations.
 
-calculate_indicators_base <- function(df, soil_wt_df){
+calculate_indicators <- function(df, soil_wt_df){
 
   indicator_list <- list(f_lipids = c('18:1 w9c', '18:2 w6,9c'),
                          # Lipids representing total bacteria for f to b ratio not shown in Cameron's data, so for now, I will use lipids for Gram +/-, actino, and anaerobe

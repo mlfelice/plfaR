@@ -1,4 +1,4 @@
-find_duplicates_base <- function(df){
+find_duplicates <- function(df){
 
   tmp_df <- aggregate(TotalPeakArea1~BatchDataFileName+Name, data = df,
                       FUN = length, drop = TRUE)
@@ -13,7 +13,7 @@ find_duplicates_base <- function(df){
   return(duplicates_df)
 }
 
-find_missing_base <- function(df, lipids = c('13:0', '16:0', '19:0')){
+find_missing <- function(df, lipids = c('13:0', '16:0', '19:0')){
 
   data_files <- unique(df$DataFileName)  # list of all sample fnames in batch
   # '_' to avoid conflict btwn df
@@ -50,7 +50,7 @@ find_missing_base <- function(df, lipids = c('13:0', '16:0', '19:0')){
 
 }
 
-count_lipids_base <- function(df){
+count_lipids <- function(df){
 
   n_samples <- length(unique(df[['DataFileName']]))
 
@@ -64,11 +64,11 @@ count_lipids_base <- function(df){
   return(lipid_freq_df)
 }
 
-quality_check_base <- function(df){
+quality_check <- function(df){
 
-  qa_funs <- list(duplicate_lipids = find_duplicates_base,
-                  missing_lipids = find_missing_base,
-                  lipid_frequency = count_lipids_base)
+  qa_funs <- list(duplicate_lipids = find_duplicates,
+                  missing_lipids = find_missing,
+                  lipid_frequency = count_lipids)
 
   dtype <- check_format(df)
 

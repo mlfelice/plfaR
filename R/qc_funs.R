@@ -25,7 +25,7 @@ hello <- function() {
 }
 
 
-find_duplicates <- function(df){
+find_duplicates_tidy <- function(df){
 
   duplicates_df <- df %>%
     group_by(DataFileName, Name) %>%
@@ -40,7 +40,7 @@ find_duplicates <- function(df){
   return(duplicates_df)
 }
 
-find_missing <- function(df, lipids = c('13:0', '16:0', '19:0')){
+find_missing_tidy <- function(df, lipids = c('13:0', '16:0', '19:0')){
   # input df must be grouped by DataFileName for this to work properly
   # This should now work without going through the intermediate check_quality() step
 
@@ -64,7 +64,7 @@ find_missing <- function(df, lipids = c('13:0', '16:0', '19:0')){
 
 #' Calculate distribution of lipids
 #'
-#' \code{count_lipids} tabulates the number of occurrences and frequency
+#' \code{count_lipids_tidy} tabulates the number of occurrences and frequency
 #' of detection of each lipid and returns as a tibble.
 #'
 #' @param df Dataframe or tibble containing the following columns: Batch,
@@ -76,7 +76,7 @@ find_missing <- function(df, lipids = c('13:0', '16:0', '19:0')){
 #'
 #' @examples
 #'
-count_lipids <- function(df){
+count_lipids_tidy <- function(df){
 
   n_samples <- length(unique(df[['DataFileName']]))
 
@@ -90,7 +90,7 @@ count_lipids <- function(df){
 
 #' Inspect PLFA peak list quality.
 #'
-#' \code{quality_check} returns a list of dataframes containing the following
+#' \code{quality_check_tidy} returns a list of dataframes containing the following
 #' information related to the quality of the data in the peak list:
 #' Samples with duplicate peak names
 #' Samples that are missing one or more of the standards peaks 13:0, 16:0, 19:0
@@ -117,11 +117,11 @@ count_lipids <- function(df){
 #' }
 #'
 #'
-quality_check <- function(df){
+quality_check_tidy <- function(df){
 
 
-  qa_funs <- list(duplicate_lipids = find_duplicates, missing_lipids = find_missing,
-                  lipid_frequency = count_lipids)
+  qa_funs <- list(duplicate_lipids = find_duplicates_tidy, missing_lipids = find_missing_tidy,
+                  lipid_frequency = count_lipids_tidy)
 
   qa_stats_list <- lapply(split(df, f = df[['Batch']]), function(x){
                     cat(paste0('Batch: ', unique(x[['Batch']]), '\n------\n'))

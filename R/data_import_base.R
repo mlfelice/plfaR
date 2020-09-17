@@ -14,7 +14,7 @@
 #'
 
 # Maybe instead, we just have a display function that converts to wide
-import_batch_base <- function(file_path){
+import_batch <- function(file_path){
   # This function imports named peak list for downstream processing/analysis
   #
   # Args:
@@ -66,7 +66,7 @@ import_batch_base <- function(file_path){
 }
 
 
-import_batch_multi_base <- function(dir, keyword){
+import_batch_multi <- function(dir, keyword){
   batch_files <- list.files(path = dir, pattern = keyword,
                             full.names = TRUE)
   batch_list <- lapply(batch_files, import_batch_base)
