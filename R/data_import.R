@@ -1,13 +1,13 @@
 #' Import single batch PLFA peak list from Excel
 #'
-#' This is the first function in the plfayer workflow, loading named PLFA peak
+#' This is the first function in the plfaR workflow, loading named PLFA peak
 #' list from a single batch for use in downstream analysis.
 #'
 #' @param file_path Full file path, including file extension for the Excel file
 #' containing PLFA data. The input Excel file must contain Batch, DataFileName,
 #' RetTimeSecs, MajorHeightnA, TotalPeakArea1, DisplayDelta1, and Name columns.
 #'
-#' @return Tibble suitable for downstream analyses in plfayer. Contains the
+#' @return Tibble suitable for downstream analyses in plfaR. Contains the
 #' input columns as well as BatchDataFileName.
 #'
 #' @examples

@@ -1,3 +1,29 @@
+###############################################################################
+# This file includes the current implementation of functions for processing raw
+# PLFA data into concentrations, total biomass, and indicator group abundance/
+# concentration.
+###############################################################################
+
+#' Subtract peak area from control and standard lipids
+#'
+#' All samples are typically run with a 19:0 extraction control and 13:0
+#' standard. This function subtracts peak area contributed by these additions
+#' prior to converting peak area to concentration.
+#'
+#' @param df Dataframe or tibble with named PLFA peak data following format
+#' specified by \code{import_batch()}.
+#'
+#' @param blanks Vector of the names of samples run as blanks. This should
+#' include all samples you want to use for peak subtraction (eg. 13:0 and 19:0)
+#' in most cases.
+#'
+#' @return Tibble similar to input with the addition of AreaMinusBlanks column
+#' showing peak areas minus area contributed by standard/control lipids.
+#'
+#' @examples
+#'
+#' @export
+#'
 subtract_blanks <- function(df, blanks){  # version that subtracts avg of blanks only
   # Inputs:
   #   df (dataframe): peak list dataframe
@@ -52,6 +78,47 @@ subtract_blanks <- function(df, blanks){  # version that subtracts avg of blanks
   return(full_df)
 }
 
+#' Convert peak areas to concentration (nmol/g dry soil)
+#'
+#' This function takes a formatted peak list and carries out blank subtraction
+#' and calculates kval in order to convert peak area for each peak to
+#' concentration. This function does not include blank subtraction. If blanks
+#' need to be subtracted, use \code{process_peak_area()}.
+#'
+#' @param df Dataframe or tibble with named PLFA peak data following format
+#' specified by \code{import_batch()}.
+#'
+#' @param standard_fnames Character vector with names of samples to be used as
+#' standards for calculating the kval. Names should match names in DataFileName
+#' column of input dataframe.
+#'
+#' @param mw_df Dataframe including all lipids (fame column) of interest and
+#' their associated molecular weights (molecular_weight_g_per_mol column). By
+#' default, this function uses the included \code{lipid_reference} dataframe.
+#'
+#' @param standard_conc Numeric value indicating the concentraion of standard
+#' in ng/uL. Default is 250 ng/uL.
+#'
+#' @param inj_vol Volume of sample injected into GC in uL. Default is 2uL.
+#'
+#' @param standard String indicating the lipid used as the standard. Default is
+#' 13:0.
+#'
+#' @param soil_wt_df Dataframe or tibble containing the dry weight (g) of soil
+#' used for lipid extraction for each sample.
+#'
+#' @param vial_vol Volume solution run on GC. Default is 50 uL
+#'
+#' @param blanks Vector of the names of samples run as blanks. This should
+#' include all samples you want to use for peak subtraction (eg. 13:0 and 19:0)
+#' in most cases.
+#'
+#' @return Tibble similar to input with the addition of concentration column.
+#'
+#' @examples
+#'
+#' @export
+#'
 area_to_concentration <- function(df, avg_std_area, soil_wt_df,
                                         mw_df = lipid_reference,
                                         standard_conc, inj_vol, standard, #standard_fnames should be blanks, not 13:0 standard, I think
@@ -101,6 +168,46 @@ area_to_concentration <- function(df, avg_std_area, soil_wt_df,
 
 }
 
+#' Convert peak areas to concentration (nmol/g dry soil)
+#'
+#' This function takes a formatted peak list and carries out blank subtraction
+#' and calculates kval in order to convert peak area for each peak to
+#' concentration.
+#'
+#' @param dat Dataframe or tibble with named PLFA peak data following format
+#' specified by \code{import_batch()}.
+#'
+#' @param standard_fnames Character vector with names of samples to be used as
+#' standards for calculating the kval. Names should match names in DataFileName
+#' column of input dataframe.
+#'
+#' @param mw_df Dataframe including all lipids (fame column) of interest and
+#' their associated molecular weights (molecular_weight_g_per_mol column). By
+#' default, this function uses the included \code{lipid_reference} dataframe.
+#'
+#' @param standard_conc Numeric value indicating the concentraion of standard
+#' in ng/uL. Default is 250 ng/uL.
+#'
+#' @param inj_vol Volume of sample injected into GC in uL. Default is 2uL.
+#'
+#' @param standard String indicating the lipid used as the standard. Default is
+#' 13:0.
+#'
+#' @param soil_wt_df Dataframe or tibble containing the dry weight (g) of soil
+#' used for lipid extraction for each sample.
+#'
+#' @param vial_vol Volume solution run on GC. Default is 50 uL
+#'
+#' @param blanks Vector of the names of samples run as blanks. This should
+#' include all samples you want to use for peak subtraction (eg. 13:0 and 19:0)
+#' in most cases.
+#'
+#' @return Tibble similar to input with the addition of concentration column.
+#'
+#' @examples
+#'
+#' @export
+#'
 process_peak_area <- function(dat, standard_fnames, mw_df = lipid_reference,
                                    standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
                                    standard = '13:0', soil_wt_df, vial_vol = 50,
@@ -123,7 +230,6 @@ process_peak_area <- function(dat, standard_fnames, mw_df = lipid_reference,
   #     is typically 13:0 and 19:0.
 
 
-  #### moved from area_to_concentration2()
   # This creates a numeric vector of the standard (usu 13:0) values
   # associated with supplied DataFileName
   standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
@@ -160,6 +266,32 @@ process_peak_area <- function(dat, standard_fnames, mw_df = lipid_reference,
 # individual lipid data and the data associated with a microbial group. This
 # looks like the approach that Jess/Cameron took. The advantage would be
 # keeping all data in one df, and simplified calculations.
+
+#' Calculate concentration and relative abundance of indicator lipids
+#'
+#' This function aggregates lipid concentration data into indicator groups
+#' (eg. fungal lipids, bacterial lipids) and calculates their relative
+#' abundance. Indicator groups reported as the sum of lipid concentration/
+#' abundance of all lipids in that group. This also calculates total biomass
+#' and fungal:bacterial lipid ratio.
+#'
+#' @param dat Dataframe or tibble with named PLFA peak data following format
+#' specified by \code{import_batch()}.
+#'
+#' @param df Dataframe or tibble generated from \code{process_peak_area()} or
+#' a dataframe/tibble with the same fields and format
+#'
+#' @param soil_wt_df Dataframe or tibble containing the dry weight (g) of soil
+#' used for lipid extraction for each sample.
+#'
+#' @return Tibble similar to input with the addition of columns for indicator
+#' groups (including total biomass), relative abundance, concentration, and
+#' fungal:bacterial lipid ratio.
+#'
+#' @examples
+#'
+#' @export
+#'
 
 calculate_indicators <- function(df, soil_wt_df){
 

@@ -24,6 +24,12 @@ hello <- function() {
   print("Hello, world!")
 }
 
+###############################################################################
+# This file contains tidyverse-based functions for assessing the quality of
+# PLFA peak naming. This is not the corrent implementation, and may need
+# debugging to work with more current versions of dplyr and other tidyverse
+# functions.
+###############################################################################
 
 find_duplicates_tidy <- function(df){
 
