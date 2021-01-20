@@ -26,6 +26,8 @@
 #'
 #' @examples
 #'
+#' @export
+#'
 correct_iso_base <- function(df, d13c_correction, methanol_13c,
                              min_height = NULL){
   df[['DisplayDelta1']] <- as.numeric(df[['DisplayDelta1']])
