@@ -44,6 +44,33 @@ correct_iso_base <- function(df, d13c_correction, methanol_13c,
 
 }
 
+#' Process del13C values
+#'
+#' This function corrects the raw del13C output for methylation and normalizes
+#' to the del13C standard USGS40 (L-glutamic acid). This function is an update
+#' of the correct_iso_base() function that uses a dataframe matching methanol
+#' lot to batch so that we can use different methanol lots for an experiment.
+#'
+#' @param \code{df} peak list dataframe or tibble. This should contain the
+#' following columns at a minimum: Batch, DataFileName, RetTimeSecs,
+#' MajorHeightnA, TotalPeakArea1, DisplayDelta1, Name. This can be the output
+#' from import_batch() or import_batch_multi().
+#'
+#' @param \code{d13c_correction} difference between measured USGS40 value and
+#' expected USGS40 value (-26.39 per mil). If IonVantage output has already
+#' been corrected, then enter 0.
+#'
+#' @param \code{meth_13c_df} Dataframe identifying the 13C signature of the
+#' methanol used for each batch. This dataframe should have 2 columns: Batch
+#' and Meth13C.
+#'
+#' @return Returns a tibble with columns from input dataframe and a corrected
+#' d13C column.
+#'
+#' @examples
+#'
+#' @export
+#'
 correct_iso_base2 <- function(df, d13c_correction, meth_13c_df,
                               min_height = NULL){
   # This version uses a dataframe matching methanol lot to batch so
@@ -68,10 +95,32 @@ correct_iso_base2 <- function(df, d13c_correction, meth_13c_df,
 
 }
 
+
+#' Calculate d13C for indicator groups
+#'
+#' This function aggregates individual lipid d13C signatures by indicator
+#' group. Current implementation uses a straight average. Future versions
+#' may offer the option to select between average and weighted average.
+#'
+#' @param \code{df} dataframe containing corrected d13C values for individual
+#' lipids. Normally, this would be the output of correct_iso_base().
+#' This should contain the following columns at a minimum: Batch, DataFileName,
+#' BatchDataFileName, d13C_corrected, Name.
+#'
+#' @param \code{sample metadata}
+#'
+#' @return Returns a tibble with corrected d13C values for each indicator
+#' group.
+#'
+#' @examples
+#'
+#' @export
+#'
+
 # Does the methanol correction have to be corrected for too?
 # Or is this number already include instrument correction?
 
-# TO DO: make this calc and indicator lipids consistent with the nmol
+# TODO: make this calc and indicator lipids consistent with the nmol
 # processing function
 indic_iso_base <- function(df, sample_metadata){
 
