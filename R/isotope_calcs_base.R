@@ -120,27 +120,38 @@ correct_iso_base2 <- function(df, d13c_correction, meth_13c_df,
 # Does the methanol correction have to be corrected for too?
 # Or is this number already include instrument correction?
 
-# TODO: make this calc and indicator lipids consistent with the nmol
-# processing function
 indic_iso_base <- function(df, sample_metadata){
 
-  indicator_list <- list(f_lipids <- c('16:1 w5c', '18:1 w9c', '18:2 w6,9c'),
-                         b_lipids <- c('13:0 iso', '13:0 anteiso', '14:0 3OH', '15:0 iso', '15:0 anteiso',
-                                       '16:0 iso', '16:1 w7c', '16:0 10me', '17:0 iso', '17:0 anteiso',
-                                       '18:1 w9t', '18:1 w7c', '18:0 10me'),
-                         gram_pos_lipids <- c('13:0 iso', '13:0 anteiso', '15:0 iso', '15:0 anteiso',
-                                              '17:iso', '17:0 anteiso'),
-                         gram_neg_lipids <- c('14:0 3OH', '16:1 w7c', '16:1 w9c', '18:1 w7c',
-                                              '18:1 w9t'),
-                         actino_lipids <- c('16:0 10me', '18:0 10me'),
-                         amf_lipids <- c('16:1 w5c'),
-                         s_fungi_lipids <- c('18:1 w9c', '18:1 w6,9c'),
-                         anaerobe_lipids <- c('19:0 cyclo')
+  indicator_list <- list(f_lipids = c('18:1 w9c', '18:2 w6,9c'),
+                         # Lipids representing total bacteria for f to b ratio not shown in Cameron's data, so for now, I will use lipids for Gram +/-, actino, and anaerobe
+                         b_lipids = c('15:0 iso', '15:0 anteiso',
+                                      '16:1 w7c', '16:0 10me',
+                                      '18:1 w9c', '18:1 w9t',
+                                      '18:2 w6,9c', '18:0 10me', '19:0 cyclo'),
+                         gram_pos_lipids = c('15:0 iso', '15:0 anteiso'),
+                         gram_neg_lipids = c('16:1 w7c', '18:1 w9t'),
+                         actino_lipids = c('16:0 10me', '18:0 10me'),
+                         anaerobe_lipids = c('19:0 cyclo'),
+                         protozoa = c('20:4 w6,9,12,15'),
+                         # May need to redefine the total_biomass. Right now, it's just all of the
+                         # indicator lipids. Not sure if there should be others as well
+                         total_biomass = c('8:0', '10:0', '10:0 2OH', '11:0',
+                                           '12:0', '12:0 2OH', '12:0 3OH',
+                                           '13:0', '14:0', '14:0 2OH',
+                                           '14:0 3OH', '14:1', '15:0',
+                                           '15:0 anteiso', '15:0 iso',
+                                           '16:0 10me', '16:0 2OH', '16:0 iso',
+                                           '16:1 w5c', '16:1 w7c', '16:1 w9c',
+                                           '17:0', '17:0 iso', '17:0 anteiso',
+                                           '17:0 cyclo', '17:1', '17:1 iso',
+                                           '18:0', '18:0 10me', '18:1 w9c',
+                                           '18:1 w9t', '18:2 w6,9c', '19:0',
+                                           '19:0 cyclo', '19:1', '20:0')
   )
   # Naming list facilitates naming the output of calcs
-  names(indicator_list) <- c('f_lipids', 'b_lipids', 'gram_pos_lipids', 'gram_neg_lipids',
-                             'actino_lipids', 'amf_lipids', 's_fungi_lipids',
-                             'anaerobe_lipids')
+  names(indicator_list) <- c('f_lipids', 'b_lipids', 'gram_pos_lipids',
+                             'gram_neg_lipids', 'actino_lipids',
+                             'anaerobe_lipids', 'protozoa', 'total_biomass')
 
   wide_df <- reshape(data = df[c('BatchDataFileName', 'DataFileName', 'Batch',
                                  'Name', 'd13C_corrected')],
@@ -166,9 +177,11 @@ indic_iso_base <- function(df, sample_metadata){
   indic_df_long <- reshape(indic_df, varying = names(indic_df)[c(3:ncol(indic_df))],
                            v.names = 'avg_d13C_corrected',
                            timevar = 'Indicator', idvar = 'BatchDataFileName',
-                           times = names(indic_df)[c(3:ncol(indic_df))], direction = 'long')
+                           times = names(indic_df)[c(3:ncol(indic_df))],
+                           direction = 'long')
 
-  indic_df_long <- merge(indic_df_long, sample_metadata, by = 'DataFileName', all.x = TRUE)
+  indic_df_long <- merge(indic_df_long, sample_metadata, by = 'DataFileName',
+                         all.x = TRUE)
 
   indic_df_long[is.na(indic_df_long[['avg_d13C_corrected']]), 'avg_d13C_corrected'] <- NA  #replace NaN's resulting from rows containing all NA
 
