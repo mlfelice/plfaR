@@ -14,8 +14,8 @@
 #' specified by \code{import_batch()}.
 #'
 #' @param blanks Vector of the names of samples run as blanks. This should
-#' include all samples you want to use for peak subtraction (eg. 13:0 and 19:0)
-#' in most cases.
+#' include all samples you want to use for peak subtraction (eg. 13:0 and 19:0
+#' in most cases).
 #'
 #' @return Tibble similar to input with the addition of AreaMinusBlanks column
 #' showing peak areas minus area contributed by standard/control lipids.
@@ -80,10 +80,10 @@ subtract_blanks <- function(df, blanks){  # version that subtracts avg of blanks
 
 #' Convert peak areas to concentration (nmol/g dry soil)
 #'
-#' This function takes a formatted peak list and carries out blank subtraction
-#' and calculates kval in order to convert peak area for each peak to
-#' concentration. This function does not include blank subtraction. If blanks
-#' need to be subtracted, use \code{process_peak_area()}.
+#' This function takes a formatted peak list and calculates kval in order to
+#' convert peak areas to concentration in units of nmol of lipid/g dry soil.
+#' This function does not include blank subtraction. If blanks need to be
+#' subtracted, use \code{process_peak_area()}.
 #'
 #' @param df Dataframe or tibble with named PLFA peak data following format
 #' specified by \code{import_batch()}.
@@ -107,7 +107,7 @@ subtract_blanks <- function(df, blanks){  # version that subtracts avg of blanks
 #' @param soil_wt_df Dataframe or tibble containing the dry weight (g) of soil
 #' used for lipid extraction for each sample.
 #'
-#' @param vial_vol Volume solution run on GC. Default is 50 uL
+#' @param vial_vol Volume of solution run on GC. Default is 50 uL
 #'
 #' @param blanks Vector of the names of samples run as blanks. This should
 #' include all samples you want to use for peak subtraction (eg. 13:0 and 19:0)
@@ -271,7 +271,7 @@ process_peak_area <- function(dat, standard_fnames, mw_df = lipid_reference,
 #'
 #' This function aggregates lipid concentration data into indicator groups
 #' (eg. fungal lipids, bacterial lipids) and calculates their relative
-#' abundance. Indicator groups reported as the sum of lipid concentration/
+#' abundance. Indicator groups reported as the sum of lipid concentration /
 #' abundance of all lipids in that group. This also calculates total biomass
 #' and fungal:bacterial lipid ratio.
 #'
