@@ -7,8 +7,8 @@
 
 #' Import single batch PLFA peak list from Excel
 #'
-#' This is the first function in the plfaR workflow, loading named PLFA peak
-#' list from a single batch for use in downstream analysis.
+#' Import a named PLFA peak list from a single batch for use in downstream
+#' analysis. This is the first function in the plfaR workflow,
 #'
 #' @param file_path Full file path, including file extension for the Excel file
 #' containing PLFA data. The input Excel file must contain Batch, DataFileName,
@@ -75,8 +75,9 @@ import_batch <- function(file_path){
 
 #' Import multiple PLFA peak lists (Excel files) in a directory
 #'
-#' This is the first function in the plfaR workflow, loading named PLFA peak
-#' list from mutliple batches for use in downstream analysis.
+#' Import a named PLFA peak list from a multiple batches for use in downstream
+#' analysis. This function will import all peak list files in the specified
+#' directory. This is the first function in the plfaR workflow,
 #'
 #' @param dir Full path to the directory containing the PLFA data Excel files
 #' to be imported. The input Excel files must contain Batch, DataFileName,
