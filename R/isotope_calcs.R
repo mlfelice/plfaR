@@ -7,12 +7,13 @@
 #' Process del13C values
 #'
 #' This function corrects the raw del13C output for methylation and normalizes
-#' to the del13C standard USGS40 (L-glutamic acid).
+#' to the del13C standard USGS40 (L-glutamic acid). This replaces
+#' \code{correct_iso()} as of 8/10/2021.
 #'
 #' @param \code{df} peak list dataframe or tibble. This should contain the
 #' following columns at a minimum: Batch, DataFileName, RetTimeSecs,
 #' MajorHeightnA, TotalPeakArea1, DisplayDelta1, Name. This can be the output
-#' from import_batch() or import_batch_multi().
+#' from \code{import_batch()} or \code{import_batch_multi()}.
 #'
 #' @param \code{c13_correction} difference between measured USGS40 value and
 #' expected USGS40 value (-26.39 per mil).
@@ -25,7 +26,7 @@
 #'
 #' @examples
 #'
-correct_iso <- function(df, d13c_correction){
+correct_iso_tidy <- function(df, d13c_correction){
   corrected_df <- df %>%
     left_join(lipid_reference, by = c('Name' = 'fame')) %>%
     mutate(d13C_corrected = ((DisplayDelta1 - !!d13c_correction)*(1) -
