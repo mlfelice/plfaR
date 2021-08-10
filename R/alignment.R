@@ -1,5 +1,7 @@
 # TODO: replace tidyverse with base R
 # TODO: include sample datasets that would allow running of examples
+# TODO: add export functions for saving processed data
+#### Use openxlsx to create multi-sheet files that document the processing choices made along with the data
 
 #' Ensure proper formatting of sample names
 #'
