@@ -189,3 +189,110 @@ name_alignment <- function(gcalign, ref_samp_df, ref_samp){
 }
 # Example
 #print(name_alignment(al, fame_ref, format_names_gcalignr(ref_samp)))
+
+#' Run peak alignment and assign peak names
+#'
+#' Uses a single reference chromatogram to align a batch of chromatograms and
+#' assign peak names based on the reference. This function wraps all stages of
+#' data prep.
+#'
+#'
+#' @param \code{df} peak list dataframe or tibble from GC run in
+#' IonVantage. The recommended column are as follows:
+#' Batch, DataFileName, RetTimeSecs, MajorHeightnA, TotalPeakArea1,
+#' DisplayDelta1, Name. This can be the output from \code{import_batch()} or
+#' \code{import_batch_multi()}.
+#'
+#' @param \code{reference} Character string of the name of file used as your
+#' reference chromatogram for alignment and naming. This should be in the same
+#' format as in the peak list dataframe (i.e. not formatted for GCalignR)
+#'
+#' @return
+#'
+#' @examples
+#'
+#' @export
+#'
+align_name_chrom <- function(df, #ref_samp,
+                             rt_col_name = 'rt', # retention time variable name
+                             rt_cutoff_low = 400, # remove peaks below 15 Minutes
+                             rt_cutoff_high = 3600, # remove peaks exceeding 45 Minutes
+                             reference = NULL, # choose automatically NOTE: Needs to be in format matching source df DataFileName
+                             max_linear_shift = 25, # max. shift for linear corrections
+                             max_diff_peak2mean = 20, # max. distance of a peak to the mean across samples
+                             min_diff_peak2peak = 20, # min. expected distance between peaks
+                             blanks = NULL, # negative control
+                             delete_single_peak = FALSE, # delete peaks that are present in just one sample
+                             write_output = NULL,# add variable names to write aligned data to text files)
+                             remove_empty = F){ # removes row if no peak
+
+  # This is just a giant wrapper function created specifically for the purpose
+  # of quickly testing automated naming of PLFA batches using GCalignR. Input a
+  # PLFA peak list, the filename of a reference sample, and any
+  # GCalignR::align_chromatograms() args. This will return a dataframe showing
+  # retention time of each peak for each file in the batch along with the
+  # automatically generated name and the originally assigned name. Must use
+  # named peak lists for this to work properly.
+  # Additionally, this will print GCalignR::gc_heatmap() and summary tibbles
+  # showing the number of orginal to auto-assigned name mismatches for each
+  # and overa the entire batch.
+  # (user-defined fun) NOTE: spaces (and special chars) converted to underscore
+  input_list <- df_to_gcinput(df)
+
+  # Check the input for formatting errors
+  GCalignR::check_input(input_list)
+
+  # summarize distribution of dist between peaks - use to set alignment params
+  GCalignR::peak_interspace(data = input_list, rt_col_name = 'rt')
+
+  ### NEW ###
+  # Extract named peak list for reference sample
+  # This will be used to assign names to aligned peak lists
+  # use a dataframe to preserve original names so we can restore in the end
+  sample_name_df <- df %>%
+    mutate(GCalignName = format_names_gcalignr(DataFileName)) %>%
+    select(OriginDataFileName = DataFileName, GCalignName) %>%
+    distinct()
+
+  ### NEW ###
+
+  # store a dataframe of the original names and corresponding GCalignR names in order
+  # to restore at the end
+  #origin_name_df <- data.frame()
+
+  name_ref <- df %>%
+    filter(DataFileName == reference) %>%
+    select(RetTimeSecs, Name)  #####switched from Peak_Name to Name to be consistent with plfaR format
+
+  # Remove special characters and make sure supplied sample name matches
+  # GCalignR format
+  ref_samp <- format_names_gcalignr(reference)
+
+  # Function just wraps a few steps that I'm using to test how alignment works
+  # Mostly just modifying the input list and re-running
+
+
+  align <- GCalignR::align_chromatograms(data = input_list, # input data
+                                         rt_col_name = rt_col_name, # retention time variable name
+                                         rt_cutoff_low = rt_cutoff_low, # remove peaks below 15 Minutes
+                                         rt_cutoff_high = rt_cutoff_high, # remove peaks exceeding 45 Minutes
+                                         reference = ref_samp, # choose automatically
+                                         max_linear_shift = max_linear_shift, # max. shift for linear corrections
+                                         max_diff_peak2mean = max_diff_peak2mean, # max. distance of a peak to the mean across samples
+                                         min_diff_peak2peak = min_diff_peak2peak, # min. expected distance between peaks
+                                         blanks = blanks, # negative control
+                                         delete_single_peak = delete_single_peak, # delete peaks that are present in just one sample
+                                         write_output = write_output,
+                                         remove_empty = remove_empty) # add variable names to write aligned data to text files
+
+  # Display heatmap figure of alignment
+  #print(GCalignR::gc_heatmap(align))
+
+  named <- name_alignment(align, name_ref, ref_samp)
+
+  final_named_df <- named %>%
+    left_join(sample_name_df, by = c('DataFileName' = 'GCalignName')) %>%
+    select(-DataFileName, DataFileName = OriginDataFileName)
+
+
+}
