@@ -70,13 +70,13 @@ format_names_gcalignr <- function(vector){
 #'
 #' @export
 #'
-df_to_gcinput <- function(batch_df){
+df_to_gcinput <- function(batch_df){ # same as above, but avoids for loop
   #
   # Converts dataframe of imported GC batch to suitable input for GCalignR
   #
   # Args:
-  #   batch_df: dataframe created from Isoprime batch log file (cols = ID_With batch, Name,
-  #       RT (Sec),	Height (nA),	Corrected 13C	Peak Name	Sum Peak Area)
+  #   batch_df: dataframe created from Isoprime batch log file (cols = ID_With batch,
+  #       Name, RT (Sec),	Height (nA),	Corrected 13C	Peak Name	Sum Peak Area)
   #     - This should be direct import of 'F1CO2-log' sheet of results
   #
   # Returns:
@@ -85,24 +85,25 @@ df_to_gcinput <- function(batch_df){
   #     - dataframe cols = "rt" and "area"
 
   # Convert input dataframe to list of dataframes w/proper colnames
-  input_list <- lapply(unique(batch_df$BatchDataFileName),
+  input_list <- lapply(unique(batch_df$DataFileName),
                        function(x){df <- batch_df %>%
-                         filter(BatchDataFileName == x) %>%
+                         filter(DataFileName == x) %>%
                          select(RetTimeSecs, TotalPeakArea1, MajorHeightnA) %>%
                          arrange(RetTimeSecs) %>% # Need to sort on RT or interferes w/alignment
                          rename(rt = RetTimeSecs, area = TotalPeakArea1,
                                 height = MajorHeightnA)
                        })
 
+
   # Extract sample names from dataframe and replace special char w/_
-  sample_names <- vapply(unique(batch_df$BatchDataFileName),
+  sample_names <- vapply(unique(batch_df$DataFileName),
                          function(x){
                            format_names_gcalignr(x)
                          },
                          FUN.VALUE = 'character')
 
   # Replace column names
-  names(input_list) <- sample_names
+  names(input_list) <- unique(sample_names)
 
   input_list
 }
@@ -137,7 +138,7 @@ df_to_gcinput <- function(batch_df){
 name_alignment <- function(gcalign, ref_samp_df, ref_samp){
   # This function attaches names to peak list from GCalignR. This version
   # outputs long-form dataframe while maintaining peak height and area
-  # data. Output includes following columns: BatchDataFileName,
+  # data. Output includes following columns: DataFileName,
   # RetTimeSecs, TotalPeakArea1, MajorHeightnA, Peak_Name
 
   # extract aligned peak list from GCalignR obj
@@ -153,16 +154,20 @@ name_alignment <- function(gcalign, ref_samp_df, ref_samp){
                                         sort = F) %>%
     # Need to re-sort on mean_RT, which is how all alignments are initially sorted
     arrange(mean_RT)
+  # also sort the area and height df in the aligned list to ensure matching
+  # Before I had both sorted, the sometimmes failed for unknown reason
+  gcalign[['aligned']][['area']] <- arrange(gcalign[['aligned']][['area']], mean_RT)
+  gcalign[['aligned']][['height']] <- arrange(gcalign[['aligned']][['height']], mean_RT)
 
   # Convert to long format
   # names_sep arg specifies new separate val cols created for each prefix
-  # portion after prefix will become entry in BatchDataFileName col
+  # portion after prefix will become entry in DataFileName col
   tmp_df <- do.call('cbind', gcalign[['aligned']]) %>%
 
-    pivot_longer(cols = -rt.Peak_Name,
-                 names_to = c('.value', 'BatchDataFileName'),
+    pivot_longer(cols = -rt.Name,
+                 names_to = c('.value', 'DataFileName'),
                  names_sep = '\\.') %>%
-    rename(Peak_Name = rt.Peak_Name, RetTimeSecs = rt,
+    rename(Name = rt.Name, RetTimeSecs = rt,
            TotalPeakArea1 = area, MajorHeightnA = height)
 
   # If aligned rt, area, height somehow get out of order, data will get
@@ -176,7 +181,7 @@ name_alignment <- function(gcalign, ref_samp_df, ref_samp){
 
   # Filter RetTimeSecs == 0, since these represent no peak
   out_df <- tmp_df %>% filter(RetTimeSecs != 0) %>%
-    select(BatchDataFileName, Peak_Name, RetTimeSecs,
+    select(DataFileName, Name, RetTimeSecs,
            MajorHeightnA, TotalPeakArea1)
 
   out_df
