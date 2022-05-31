@@ -392,6 +392,129 @@ calculate_indicators <- function(df, soil_wt_df){
 
 }
 
+
+#' Convert peak areas to concentration (nmol/g dry soil)
+#'
+#' ## This is the most up to date peak area processing function (5/21/2022) ##
+#' This function takes a formatted peak list and carries out blank subtraction
+#' and calculates kval in order to convert peak area for each peak to
+#' concentration. This new version is modified from \code{process_peak_area()}
+#' in order to simplify specifying the standards and blanks. Instead of
+#' inputting a list of lipids and blanks or lipids and standards, you simply
+#' include a SampleType column in your weight sheet/sample denoting your blanks
+#' and standards. Default arguments specify the most common lipids used as
+#' standards and for blank subtraction and common SampleType names for them.
+#' However, these can be explicitly entered to fit any analysis/naming scheme.
+#'
+#' @param dat Dataframe or tibble with named PLFA peak data following format
+#' specified by \code{import_batch()}.
+#'
+#' @param standard_fnames Character vector with names of samples to be used as
+#' standards for calculating the kval. Names should match names in DataFileName
+#' column of input dataframe.
+#'
+#' @param mw_df Dataframe including all lipids (fame column) of interest and
+#' their associated molecular weights (molecular_weight_g_per_mol column). By
+#' default, this function uses the included \code{lipid_reference} dataframe.
+#'
+#' @param standard_conc Numeric value indicating the concentraion of standard
+#' in ng/uL. Default is 250 ng/uL.
+#'
+#' @param inj_vol Volume of sample injected into GC in uL. Default is 2uL.
+#'
+#' @param standard String indicating the lipid used as the standard. Default is
+#' 13:0.
+#'
+#' @param soil_wt_df Dataframe or tibble containing the dry weight (g) of soil
+#' used for lipid extraction for each sample.
+#'
+#' @param vial_vol Volume solution run on GC. Default is 50 uL
+#'
+#' @param blanks named vector specifying names of samples to use for blanks
+#' subtraction and which lipids need subtraction. The name of each vector item
+#' should denote the lipid and each actual items in the vector should denote
+#' the associated SampleType. Include all lipids you want to use for peak
+#' subtraction. As an examnple, the default argument is
+#' \code{blanks = c('19:0' = Blank, '13:0' = Standard)}.
+#'
+#' @return Tibble similar to input with the addition of concentration column.
+#'
+#' @examples
+#'
+#' @export
+#'
+process_peak_area_ <- function(dat,
+                               #standard_fnames,
+                               mw_df = lipid_reference,
+                               standard_conc = 250, inj_vol = 2, #standard_fnames should be blanks, not 13:0 standard, I think
+                               standard = '13:0', soil_wt_df, vial_vol = 50,
+                               blanks = c('19:0' = 'Control', '13:0' = 'Standard')){
+                                 # Inputs:
+                                 #   dat (dataframe or list?):
+                                 #   standard_fnames (char vector):
+                                 #   mw_df (dataframe):
+                                 #   standard_conc (numeric):
+                                 #   inj_vol (numeric):
+                                 #   standard (string):
+                                 #   vial_vol (numeric):
+                                 #   blanks (list): named list with list item names corresponding to lipid,
+                                 #     and each item consisting of a character vector containing the
+                                 #     DataFileName corresponding to the samples to use for blanks
+                                 #     subtraction. Blanks are non-experimental samples containing surrogate
+                                 #     or internal standards also present in experimental samples that need
+                                 #     to be subtracted from experimental samples. In the Gutknecht lab, this
+                                 #     is typically 13:0 and 19:0.
+
+
+                                 # This creates a numeric vector of the standard (usu 13:0) values
+                                 # associated with supplied DataFileName
+                                 #####
+
+                                 standard_fnames <- unlist(soil_wt_df[grepl('[Ss]tandard', soil_wt_df[['SampleType']]),
+                                                                      'DataFileName'])
+
+                                 standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
+                                                              dat[['Name']] == standard, 'TotalPeakArea1'])
+
+                                 #####
+                                 #standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
+                                 #                             dat[['Name']] == standard, 'TotalPeakArea1'])
+                                 avg_std_area <- mean(standard_vec)
+
+                                 # This is what gets used for applying
+                                 #kval, values from subtract_blanks() only used for subtracting
+
+                                 ####
+                                 # could also structure so that user can input 'blanks' arg that would
+                                 # supersede the SampleType from metadata
+                                 # This is the old way. Probably best to do something where the metadata
+                                 # tells which to use
+                                 #blanks <- unlist(soil_wt_df[grepl('[Bb]lank', soil_wt_df[['SampleType']]),
+                                 #                            'DataFileName'])
+                                 ###
+
+                                 #####
+                                 # This is the main differing code chunk. Creates a list of lipids for blank subtraction and associated file names
+                                 # This creates a named list in same format as input for process_peak_area(), so we don't have to change
+                                 # the subtract_blanks() function
+                                 # Loops over the named vector and finds that data file names that matches each SampleType.
+                                 # The output list items take on the name of the input vector item name
+                                 blank_ls <- lapply(c('19:0' = 'Control', '13:0' = 'Standard'),
+                                                    function(x){unlist(md[which(md[['SampleType']] ==
+                                                                                  x), 'DataFileName'])})
+                                 #####
+                                 dtype <- check_format(dat)
+
+                                 if (dtype == 'data.frame') {
+                                   tmp_df <- subtract_blanks(dat, blank_ls)
+                                   #tmp_df <- subtract_blanks2(dat, blanks = blanks,
+                                   #                               lipids = c('13:0', '19:0'))
+                                   area_to_concentration(tmp_df, avg_std_area, mw_df = lipid_reference,
+                                                         standard_conc = standard_conc, inj_vol = inj_vol, #standard_fnames should be blanks, not 13:0 standard, I think
+                                                         standard = standard, soil_wt_df, vial_vol = vial_vol)
+                                 }
+                               }
+
 #################################################
 # This is a little rough and not yet functioning
 # Try to get it right later
