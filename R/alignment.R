@@ -296,3 +296,145 @@ align_name_chrom <- function(df, #ref_samp,
 
 
 }
+
+
+
+compare_naming <- function(named_aligned_df, origin_df){
+  # Function joins peak names from named peak list dataframe to the named
+  # GCalignR output. This allows you to compare the hand naming data to
+  # automated naming.
+  # This works, because the GCalignR doesn't change the retention times
+  # for samples in the $aligned$rt dataframe.
+
+  # Make a DF to merge with peak alignment in order to check new naming
+  # Since we changed the naming function to restore file names, no longer
+  # need to convert names in ref df
+  ref_df <- origin_df %>%
+    select(DataFileName, Name, RetTimeSecs) #%>%
+  #mutate(DataFileName = format_names_gcalignr(DataFileName))
+
+  full_df <- named_aligned_df %>%
+    filter(RetTimeSecs != 0) %>%
+    select(DataFileName, NewName = Name, RetTimeSecs) %>%
+    full_join(ref_df, by = c('DataFileName', 'RetTimeSecs')) %>%
+    arrange(DataFileName, RetTimeSecs) %>%
+    select(-NewName, NewName) # Not necessary, but makes old and new adjacent
+
+  full_df
+}  # Compare GCalignR naming to previous naming
+# Example
+#compare_naming(name_alignment(al, fame_ref, format_names_gcalignr(ref_samp)), batch_fame_df)
+
+
+
+# Input a df that is already named, and this will align, name, and produce summary stats
+test_align <- function(df, #ref_samp,
+                       rt_col_name = 'rt', # retention time variable name
+                       rt_cutoff_low = 400, # remove peaks below 15 Minutes
+                       rt_cutoff_high = 3600, # remove peaks exceeding 45 Minutes
+                       reference = NULL, # choose automatically NOTE: Needs to be in format matching source df DataFileName
+                       max_linear_shift = 25, # max. shift for linear corrections
+                       max_diff_peak2mean = 20, # max. distance of a peak to the mean across samples
+                       min_diff_peak2peak = 20, # min. expected distance between peaks
+                       blanks = NULL, # negative control
+                       delete_single_peak = FALSE, # delete peaks that are present in just one sample
+                       write_output = NULL,# add variable names to write aligned data to text files)
+                       remove_empty = F){ # removes row if no peak
+
+  # This is just a giant wrapper function created specifically for the purpose
+  # of quickly testing automated naming of PLFA batches using GCalignR. Input a
+  # PLFA peak list, the filename of a reference sample, and any
+  # GCalignR::align_chromatograms() args. This will return a dataframe showing
+  # retention time of each peak for each file in the batch along with the
+  # automatically generated name and the originally assigned name. Must use
+  # named peak lists for this to work properly.
+  # Additionally, this will print GCalignR::gc_heatmap() and summary tibbles
+  # showing the number of orginal to auto-assigned name mismatches for each
+  # and overa the entire batch.
+  # (user-defined fun) NOTE: spaces (and special chars) converted to underscore
+  input_list <- df_to_gcinput(df)
+
+  # Check the input for formatting errors
+  check_input(input_list)
+
+  # summarize distribution of dist between peaks - use to set alignment params
+  peak_interspace(data = input_list, rt_col_name = 'rt')
+
+  # Extract named peak list for reference sample
+  # This will be used to assign names to aligned peak lists
+  ref_samp <- format_names_gcalignr(reference)
+
+  name_ref <- df %>%
+    filter(DataFileName == reference) %>%
+    select(RetTimeSecs, Name)
+
+  # Function just wraps a few steps that I'm using to test how alignment works
+  # Mostly just modifying the input list and re-running
+  align <- align_chromatograms(data = input_list, # input data
+                               rt_col_name = rt_col_name, # retention time variable name
+                               rt_cutoff_low = rt_cutoff_low, # remove peaks below 15 Minutes
+                               rt_cutoff_high = rt_cutoff_high, # remove peaks exceeding 45 Minutes
+                               reference = ref_samp, # choose automatically
+                               max_linear_shift = max_linear_shift, # max. shift for linear corrections
+                               max_diff_peak2mean = max_diff_peak2mean, # max. distance of a peak to the mean across samples
+                               min_diff_peak2peak = min_diff_peak2peak, # min. expected distance between peaks
+                               blanks = blanks, # negative control
+                               delete_single_peak = delete_single_peak, # delete peaks that are present in just one sample
+                               write_output = write_output,
+                               remove_empty = remove_empty) # add variable names to write aligned data to text files
+
+  # Display heatmap figure of alignment
+  print(gc_heatmap(align))
+
+  named <- name_alignment(align, name_ref, ref_samp)
+
+  named_long <- compare_naming(named, df)
+
+  # summary stats that indicate how well the alignment matches
+  # Count number of mis-identified peaks
+  ## During intitial alignment of reference RT/names to the alignment, any
+  ## rows that aren't aligned with a named reference peak will become NA
+  ## Since we then merge original hand-named peak list to the auto named peak
+  ## list based on file/sample name and RT, any mismatches in name become NA in
+  ## cases where the RT doesn't correspond to the same name should also produce
+  ## and NA
+  ## If there is NA in both columns, that would indicate unnamed peak matched
+  ## to unnamed peak
+  #print(
+  #  named_long %>%
+  #    filter(!(is.na(Name) & is.na(NewName))) %>% # Remove rows with no Name or NewName
+  #    group_by(DataFileName) %>%
+  #    summarise(Misnamed = sum(is.na(NewName)))
+  #)
+  #print(
+  #  named_long %>%
+  #    filter(!(is.na(Name) & is.na(NewName))) %>% # Remove rows with no Name or NewName
+  #    group_by(DataFileName) %>%
+  #    summarise(Misnamed = sum(is.na(NewName))) %>%
+  #    summarise(MeanMissed = mean(Misnamed), TotalMissed = sum(Misnamed))
+  #)
+  print(
+    named_long %>%
+      filter(!(is.na(Name) & is.na(NewName)),
+             DataFileName != 'mean_RT') %>% # Remove rows with no Name or NewName
+      mutate(Mismatch = if_else(is.na(NewName) | is.na(Name), TRUE,
+                                (Name != NewName))) %>%
+      group_by(DataFileName) %>%
+      summarise(Misnamed = sum(Mismatch))
+  )
+  print(
+    named_long %>%
+      filter(!(is.na(Name) & is.na(NewName)),
+             DataFileName != 'mean_RT') %>% # Remove rows with no Name or NewName
+      mutate(Mismatch = if_else(is.na(NewName) | is.na(Name), TRUE,
+                                (Name != NewName))) %>%
+      group_by(DataFileName) %>%
+      summarise(Misnamed = sum(Mismatch)) %>%
+      summarise(MeanMissed = mean(Misnamed), TotalMissed = sum(Misnamed))
+  )
+
+  named_long
+  # NOTE: although the above summary stats exclude rows with NA for both Name
+  # and NewName, these remain in the output dataframe for transparency
+}
+
