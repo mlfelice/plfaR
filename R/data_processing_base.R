@@ -470,11 +470,18 @@ process_peak_area_ <- function(dat,
                                  # associated with supplied DataFileName
                                  #####
 
-                                 standard_fnames <- unlist(soil_wt_df[grepl('[Ss]tandard', soil_wt_df[['SampleType']]),
+                                # Pull the names of files used as standards and add to vector
+                                 standard_fnames <- unlist(soil_wt_df[soil_wt_df[['SampleType']] == standard,
                                                                       'DataFileName'])
 
+                                 # Pull the TotalPeakArea1 for the specified lipid associated with each file
+                                 # There should only be one lipid used as a standard. Otherwise, will throw an
+                                 # error.
+                                 # TODO: update to allow multiple standards, or build in more informative
+                                 # error handling.
                                  standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
-                                                              dat[['Name']] == standard, 'TotalPeakArea1'])
+                                                              dat[['Name']] == names(standard), 'TotalPeakArea1'])
+
 
                                  #####
                                  #standard_vec <- unlist(dat[dat[['DataFileName']] %in% standard_fnames &
